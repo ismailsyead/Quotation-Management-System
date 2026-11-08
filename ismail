@@ -1,0 +1,3708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quotation System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* ============================================================
+   CSS VARIABLES & THEMES
+   ============================================================ */
+:root {
+  --navy: #142b49;
+  --blue: #245b8f;
+  --gold: #c99b45;
+  --bg: #f3f6fa;
+  --panel-bg: #ffffff;
+  --input-bg: #ffffff;
+  --ink: #1e293b;
+  --heading: #142b49;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --white: #ffffff;
+  --green: #16845b;
+  --red: #b84b4b;
+  --sidebar-text: #dbe6f3;
+  --editor-bg: #e2e8f0;
+  --editor-canvas: #ffffff;
+}
+
+body.dark-mode {
+  --navy: #0f172a;
+  --blue: #3b82f6;
+  --gold: #f59e0b;
+  --bg: #0f172a;
+  --panel-bg: #1e293b;
+  --input-bg: #0f172a;
+  --ink: #f8fafc;
+  --heading: #f8fafc;
+  --muted: #cbd5e1;
+  --line: #475569;
+  --white: #1e293b;
+  --sidebar-text: #cbd5e1;
+  --editor-bg: #0f172a;
+  --editor-canvas: #1e293b;
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); font-family: Arial, "Segoe UI", sans-serif; color: var(--ink); transition: background 0.3s, color 0.3s; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; border: 0; border-radius: 9px; padding: 10px 15px; font-weight: 700; transition: all 0.2s; }
+h1, h2, h3, h4 { color: var(--heading); transition: color 0.3s; }
+.app { display: none; min-height: 100vh; }
+.sidebar { width: 245px; background: var(--navy); color: #fff; padding: 24px 16px; display: flex; flex-direction: column; gap: 22px; transition: background 0.3s; }
+.brand { padding: 8px 10px; border-bottom: 1px solid #ffffff25; margin-bottom: 10px; }
+.brand-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.brand img { height: 32px; width: 32px; object-fit: contain; background: #fff; border-radius: 4px; padding: 2px; display: none; }
+.brand strong { display: block; font-size: 21px; letter-spacing: 1.4px; color: #fff; }
+.brand small { color: #cbd5e1; letter-spacing: 2px; }
+.nav { display: grid; gap: 8px; }
+.nav button { background: transparent; color: var(--sidebar-text); text-align: left; border-radius: 8px; }
+.nav button.active, .nav button:hover { background: #ffffff1c; color: #fff; }
+.main { flex: 1; min-width: 0; }
+.topbar { height: 76px; background: var(--panel-bg); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; transition: background 0.3s, border-color 0.3s; }
+.topbar h1 { font-size: 20px; margin: 0; }
+.top-actions { display: flex; gap: 12px; align-items: center; }
+
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-gold { background: var(--gold); color: #fff; }
+.btn-light { background: var(--bg); color: var(--ink); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-outline { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+.btn-xs { padding: 7px 10px; font-size: 11px; border-radius: 6px; font-weight: 700; margin: 2px; }
+.btn-mini { padding: 8px 12px; font-size: 12px; border-radius: 7px; }
+.btn-icon { padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); }
+
+.content { padding: 26px; max-width: 1500px; margin: auto; }
+.page { display: none; }
+.page.active { display: block; }
+.welcome { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; }
+.welcome h2 { margin: 0 0 6px; }
+.muted { color: var(--muted); font-size: 13px; }
+.empty { text-align: center; color: var(--muted); padding: 14px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 15px; margin-bottom: 22px; }
+.stat, .panel { background: var(--panel-bg); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: 0 3px 12px #0f172a08; transition: background 0.3s, border-color 0.3s; }
+.stat .label { color: var(--muted); font-size: 13px; }
+.stat .value { font-size: 28px; font-weight: 800; color: var(--heading); margin-top: 10px; }
+.stat .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.panel h3 { margin: 0 0 16px; font-size: 16px; }
+.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.table-wrap { overflow: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 720px; }
+th, td { text-align: left; padding: 13px 12px; border-bottom: 1px solid var(--line); font-size: 13px; white-space: nowrap; }
+th { background: var(--bg); color: var(--muted); font-size: 12px; }
+td { font-weight: 700; color: var(--ink); }
+td strong { color: var(--heading); font-weight: 800; }
+.tag { padding: 5px 9px; border-radius: 20px; background: var(--bg); color: var(--blue); font-size: 11px; font-weight: 700; }
+
+.search, .filter-select { border: 1px solid var(--line); background: var(--input-bg); color: var(--ink);
+  padding: 10px 12px; border-radius: 8px; min-width: 160px; font-weight: 700; outline: none; }
+.search:focus, .filter-select:focus { border-color: var(--blue); }
+
+.dropdown { position: relative; display: inline-block; }
+.dropdown-content { display: none; position: absolute; top: calc(100% + 6px); left: 0; min-width: 190px;
+  background: var(--panel-bg); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0,0,0,.12); z-index: 200; padding: 6px; }
+.dropdown-content.show { display: block; }
+.dropdown-content button { display: block; width: 100%; text-align: left; background: transparent;
+  color: var(--ink); padding: 10px 12px; border-radius: 6px; font-weight: 700; }
+.dropdown-content button:hover { background: var(--bg); }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+
+.totals { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+.total-item { background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+.total-item span { font-size: 12px; color: var(--muted); font-weight: 700; }
+.total-item b { font-size: 18px; color: var(--heading); }
+.total-item small { font-size: 11px; color: var(--muted); }
+.total-item.grand { background: var(--navy); border-color: var(--navy); }
+.total-item.grand span, .total-item.grand small { color: #cbd5e1; }
+.total-item.grand b { color: #fff; font-size: 22px; }
+
+.form-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12px; font-weight: 700; color: var(--muted); }
+.field input, .field select, .field textarea { border: 1px solid var(--line); border-radius: 8px; padding: 11px; background: var(--input-bg); min-width: 0; color: var(--ink); font-weight: 700; outline: none; transition: background 0.3s, border-color 0.3s; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--blue); }
+.field textarea { min-height: 75px; resize: vertical; font-weight: 600; }
+.span2 { grid-column: span 2; }
+.span3 { grid-column: span 3; }
+.section-title { grid-column: 1/-1; border-bottom: 1px solid var(--line); padding: 12px 0 7px; margin-top: 5px; color: var(--blue); font-weight: 800; font-size: 13px; }
+
+::placeholder { color: var(--muted); opacity: 0.5; }
+input[type="file"] { color: var(--ink) !important; }
+input[type="file"]::file-selector-button {
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+  padding: 6px 12px; border-radius: 6px; margin-right: 10px; font-weight: bold; cursor: pointer;
+}
+input[type="file"]::file-selector-button:hover { background: var(--line); }
+.field select option { background: var(--panel-bg); color: var(--ink); }
+input[type="checkbox"] { accent-color: var(--blue); width: 18px; height: 18px; cursor: pointer; }
+
+/* Emoji fallback for flags */
+select.emoji-font, select.emoji-font option {
+    font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+}
+
+/* ============================================================
+   MODERN CUSTOM DROPDOWN (Company Selector)
+   ============================================================ */
+.custom-select { position: relative; display: inline-block; }
+.custom-select-btn {
+  background: var(--bg); border: 1px solid var(--line); color: var(--heading);
+  padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: 800;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  transition: all 0.2s; font-size: 13px; min-width: 180px;
+}
+.custom-select-btn:hover { border-color: var(--blue); }
+.custom-select-menu {
+  display: none; position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+  background: var(--panel-bg); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; overflow: hidden; min-width: 220px;
+}
+.custom-select-menu.show { display: block; }
+.custom-select-item {
+  padding: 10px 16px; cursor: pointer; font-weight: 700; color: var(--ink);
+  font-size: 13px; transition: 0.2s; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px;
+}
+.custom-select-item:last-child { border-bottom: none; }
+.custom-select-item:hover { background: var(--bg); color: var(--blue); }
+
+/* ============================================================
+   COMPANY PROFILE & VISUAL EDITOR
+   ============================================================ */
+.profile-split { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.profile-left { flex: 1; min-width: 350px; display: flex; flex-direction: column; gap: 16px; }
+.profile-right { flex: 2; min-width: 600px; display: flex; flex-direction: column; gap: 16px; }
+
+.upload-box { display: flex; align-items: flex-start; gap: 15px; background: var(--bg); padding: 12px; border-radius: 10px; border: 1px dashed var(--line); overflow: hidden; }
+.a4-preview-box { width: 45px; height: 63px; background: var(--panel-bg); border: 1px solid var(--line); border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+.a4-preview-box img { width: 100%; height: 100%; object-fit: cover; }
+
+#logoPreview, #a4Preview, #userPreview {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+#logoPreview { height: 45px; width: 45px; border-radius: 4px; background: #fff; }
+#a4Preview { width: 100%; height: 100%; object-fit: cover; }
+#userPreview { height: 40px; width: 40px; border-radius: 50%; border: 2px solid var(--blue); }
+
+.editor-workspace { display: flex; gap: 15px; background: var(--editor-bg); border-radius: 12px; padding: 15px; border: 1px solid var(--line); min-height: 600px; }
+.editor-canvas-wrapper { flex: 1; display: flex; justify-content: center; align-items: flex-start; overflow: auto; padding: 10px; }
+
+#pdfVisualEditor {
+  position: relative; width: 100%; max-width: 500px; aspect-ratio: 1 / 1.414;
+  background-color: var(--editor-canvas);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1); flex-shrink: 0; border-radius: 2px;
+  background-size: 100% 100%; background-position: center; background-repeat: no-repeat;
+}
+.drag-item {
+  position: absolute; cursor: grab; padding: 6px; background: rgba(255,255,255,0.4);
+  border: 1px dashed transparent; border-radius: 4px; user-select: none;
+  transition: box-shadow 0.2s, border-color 0.2s; resize: both; overflow: hidden; min-width: 40px; min-height: 20px;
+}
+.drag-item:hover { border-color: var(--blue); background: rgba(255,255,255,0.8); }
+.drag-item.selected { border: 2px solid var(--blue); box-shadow: 0 0 0 3px rgba(36, 91, 143, 0.2); z-index: 10; background: rgba(255,255,255,0.95); }
+.drag-item:active { cursor: grabbing; }
+.drag-item.offer { color: #fff; background: rgba(20,43,73,0.9); text-align: center; font-weight: 800; line-height: 1.3; border: 1px solid var(--gold); }
+
+.mock-table { width: 100%; border-collapse: collapse; font-size: 9px; table-layout: fixed; background: transparent; pointer-events: none; }
+.mock-table th { background: var(--navy); color: white; padding: 4px 2px; text-align: center; font-weight: bold; border: 1px solid #fff; font-size: 8px; }
+.mock-table td { border: 1px dashed #cbd5e1; text-align: center; color: #64748b; background: transparent; font-weight: 600;}
+
+.editor-properties { width: 220px; background: var(--panel-bg); padding: 15px; border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.editor-properties h4 { margin: 0 0 10px 0; font-size: 14px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.prop-group { margin-bottom: 12px; }
+.prop-group label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; }
+.prop-group select, .prop-group input[type="number"] { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; background: var(--input-bg); color: var(--ink); outline: none; }
+.prop-group input[type="color"].color-picker { width: 100%; height: 35px; border: 1px solid var(--line); background: var(--input-bg); cursor: pointer; padding: 2px; border-radius: 6px; }
+
+#hiddenButtons { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.hidden-block-btn { background: var(--bg); color: var(--ink); border: 1px solid var(--line); padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+
+/* ============================================================
+   A4 QUOTE PAPER
+   ============================================================ */
+.quote-paper {
+  background-color: #ffffff;
+  width: 210mm; height: 297mm; margin: auto; padding: 0;
+  position: relative; color: #1e293b;
+  overflow: hidden;
+  box-shadow: 0 3px 18px #0f172a14;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+.quote-paper table { width:100%; min-width:0; max-width:100%; border-collapse:collapse; font-size:10px; margin:0; table-layout:fixed; }
+.quote-paper th {
+  color:#fff !important; border:1px solid #fff !important; text-align:center; padding:5px 2px;
+  white-space:normal; font-weight:800; font-size:9px; word-break:break-word;
+  overflow-wrap:anywhere; line-height:1.2; -webkit-print-color-adjust: exact !important;
+}
+.quote-paper td { text-align:center; border:0; padding:5px 2px; white-space:normal; font-weight:inherit; color:#1e293b; border-bottom:1px solid #e2e8f0; font-size:9px; word-break:break-word; overflow-wrap:anywhere; line-height:1.3; }
+.quote-paper .qtotal { width:100%; margin-left:auto; margin-top:3px; border-width:1px; border-style:solid; }
+.quote-paper .qtotal div { display:flex; justify-content:space-between; gap:8px; padding:6px 10px; color:#fff !important; border-bottom:1px solid #fff; font-size:12px; font-weight:700; -webkit-print-color-adjust: exact !important; }
+.quote-paper .qtotal div:last-child { border-bottom:0; }
+.quote-paper .qtotal .grand { font-weight:900; font-size:13px; }
+.quote-paper .qnotes { margin-top:0; line-height:1.6; font-size:11px; font-weight:600; }
+.quote-paper .qnotes p { margin:6px 0; }
+.quote-paper[dir=rtl] { direction:rtl; }
+
+/* ============================================================
+   CHARTS
+   ============================================================ */
+.chart-container { position: relative; height: 250px; width: 100%; }
+
+/* ============================================================
+   MISC & RESPONSIVE
+   ============================================================ */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--navy);color:#fff;padding:12px 18px;border-radius:10px;display:none;z-index:9999;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
+.rtl{direction:rtl}.rtl th,.rtl td{text-align:right}.rtl .nav button{text-align:right}.rtl .topbar,.rtl .welcome,.rtl .panel-head{direction:rtl}.rtl .toast{right:auto;left:20px}
+
+/* Strict image constraints */
+img { max-width: 100%; }
+.user-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; margin-right: 8px; vertical-align: middle; border: 2px solid var(--blue); }
+#topUserAvatar { width: 32px !important; height: 32px !important; border-radius: 50%; object-fit: cover; border: 2px solid var(--blue); flex-shrink: 0; }
+
+.profile-badge { display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 12px; border-radius:10px; background:var(--bg); border:1px solid var(--line); transition:all 0.2s; overflow:hidden; }
+.profile-badge:hover { background:var(--line); border-color:#cbd5e1; }
+.profile-badge .fallback { width:32px; height:32px; border-radius:50%; background:var(--blue); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex-shrink: 0; }
+
+.checkbox-group { display:flex; flex-direction:column; gap:6px; background:var(--bg); padding:10px; border-radius:8px; border:1px solid var(--line); max-height: 150px; overflow-y: auto; }
+.checkbox-group label { display:flex; align-items:center; gap:8px; font-weight:700; font-size:12px; cursor:pointer; background:var(--panel-bg); padding:8px 10px; border-radius:6px; border:1px solid var(--line); color:var(--ink); }
+.checkbox-group input[type="checkbox"] { accent-color: var(--blue); width:16px; height:16px; cursor:pointer; }
+
+.theme-studio { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+.theme-card { width: 80px; height: 50px; border-radius: 8px; cursor: pointer; overflow: hidden; display: flex; border: 2px solid transparent; transition: transform 0.2s; position: relative;}
+.theme-card:hover { transform: scale(1.05); border-color: var(--blue); }
+.theme-card div { flex: 1; height: 100%; }
+.coolors-btn { background: linear-gradient(45deg, #ff3a00, #ff8a00, #f4b900); color: white; border-radius: 8px; padding: 8px 15px; font-weight: bold; cursor: pointer; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 10px; }
+
+.vehicle-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 10px; padding: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; flex-wrap: wrap; }
+.vehicle-row .field { flex: 1; min-width: 90px; margin-bottom: 0; }
+.vehicle-row .field label { font-size: 10px; color: var(--blue); text-transform: uppercase; }
+.vehicle-row .field input, .vehicle-row .field select { padding: 8px; font-size: 12px; height: 36px; font-weight: 700; }
+.vehicle-row .v-desc { flex: 2; min-width: 150px; }
+.vehicle-row .v-sub { flex: 1.5; min-width: 110px; }
+.vehicle-row .btn-remove { background: #fff0f0; color: var(--red); padding: 0 12px; height: 36px; border-radius: 6px; font-weight: 800; font-size: 14px; border: 1px solid #fecaca; }
+.vehicle-row .btn-remove:hover { background: var(--red); color: #fff; border-color: var(--red); }
+
+body.exporting .content{padding:0;max-width:none;margin:0}
+body.exporting #printArea{width:210mm;margin:0 auto;display:block!important}
+body.exporting .quote-paper{box-shadow:none;margin:0}
+body.exporting .no-print{display:none!important}
+
+.filter-dropdown { position: relative; display: inline-block; }
+.filter-menu { display: none; position: absolute; top: 100%; right: 0; background: var(--panel-bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 50; min-width: 180px; padding: 10px; margin-top: 5px; }
+.filter-menu.show { display: block; }
+.filter-option { display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer; border-radius: 4px; font-weight: 600; font-size: 13px; color: var(--ink); }
+.filter-option:hover { background: var(--bg); }
+
+/* ============================================================
+   SPLIT-SCREEN LOGIN
+   ============================================================ */
+#loginScreen { position:fixed; inset:0; display:flex; z-index:1000; background: var(--bg); }
+.login-left {
+  flex: 1.2; background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+  display: flex; flex-direction: column; justify-content: center; padding: 60px;
+  color: #fff; position: relative; overflow: hidden;
+}
+.login-left::before { content: ''; position: absolute; top: -50px; left: -50px; width: 300px; height: 300px; background: rgba(255,255,255,0.1); border-radius: 50%; z-index: 1; }
+.login-left::after { content: ''; position: absolute; bottom: -100px; right: -50px; width: 400px; height: 400px; background: rgba(255,255,255,0.05); border-radius: 50%; z-index: 1; }
+
+.login-bg-custom {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background-size: cover; background-position: center; z-index: 0; display: none;
+}
+.login-left.has-bg::before, .login-left.has-bg::after { display: none; }
+
+.login-brand-content { position: relative; z-index: 2; max-width: 450px; }
+.login-logo { font-size: 32px; font-weight: 900; letter-spacing: 2px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; color: #fff; }
+.login-logo-icon { width: 50px; height: 50px; background: var(--gold); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; overflow: hidden; }
+.login-logo-icon img { width: 100%; height: 100%; object-fit: contain; background: #fff; border-radius: 12px; }
+.login-brand-content h1 { font-size: 42px; font-weight: 900; margin-bottom: 20px; line-height: 1.2; color: #fff; }
+.login-brand-content p { font-size: 16px; opacity: 0.9; line-height: 1.6; color: #cbd5e1; white-space: pre-wrap; }
+
+.login-right { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--panel-bg); }
+.login-form-box { width: 100%; max-width: 400px; padding: 40px; }
+.login-form-box h2 { margin-top:0; font-size:28px; font-weight:900; letter-spacing:1px; text-align:center; }
+.login-form-box p { text-align:center; margin-bottom:30px; }
+
+@media(max-width: 900px) {
+  #loginScreen { flex-direction: column; }
+  .login-left { display: none; }
+  .login-right { background: var(--bg); }
+  .login-form-box { background: var(--panel-bg); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid var(--line); }
+}
+
+@media(max-width:900px){.sidebar{width:190px}.stats{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.span3{grid-column:span 2}.totals{grid-template-columns:repeat(2,1fr)}.editor-workspace{flex-direction:column}.profile-right{min-width:100%}}
+@media(max-width:620px){.app{display:block}.sidebar{width:100%;padding:12px;gap:10px}.brand{border:0;padding:4px 8px}.nav{grid-template-columns:repeat(2,1fr)}.topbar{height:auto;padding:14px;gap:10px; flex-wrap:wrap;}.content{padding:14px}.stats{gap:9px}.stat{padding:13px}.stat .value{font-size:22px}.form-grid{grid-template-columns:1fr}.span2,.span3{grid-column:span 1}.welcome{align-items:flex-start;flex-direction:column}.totals{grid-template-columns:1fr 1fr}}
+
+@media print{
+ @page{size:A4 portrait;margin:0}
+ body{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .sidebar,.topbar,.no-print{display:none!important}
+ .main,.content{padding:0;margin:0;max-width:none}
+ .page{display:none!important}
+ #printArea{display:block!important;width:210mm;min-height:297mm}
+ .quote-paper{width:210mm;min-height:297mm;padding:0;margin:0;border-radius:0;box-shadow:none;font-size:11pt}
+ .quote-paper table{font-size:9pt;margin:0}
+ .quote-paper th{padding:2mm 1mm}
+ .quote-paper td{padding:2mm 1mm}
+ .quote-paper tr{page-break-inside:avoid}
+ .quote-paper .qtotal{margin-top:3mm}
+ .quote-paper .qtotal div{padding:1.5mm 3mm;font-size:10pt}
+ .quote-paper .qnotes{margin-top:0;font-size:10pt}
+ .quote-paper .qnotes p{margin:3mm 0}
+}
+</style></head>
+<body>
+
+<!-- SPLIT SCREEN LOGIN -->
+<div id="loginScreen">
+  <div class="login-left" id="loginLeftPanel">
+    <div class="login-bg-custom" id="loginBgImage"></div>
+    <div class="login-brand-content">
+      <div class="login-logo">
+        <div class="login-logo-icon" id="loginLogoIcon">⚙️</div>
+        <span id="loginBrandName">MIGHTY HANDS</span>
+      </div>
+      <h1 id="loginMainTitle">Quotation Management System</h1>
+      <p id="loginDescText">Streamline your business operations...</p>
+    </div>
+  </div>
+
+  <div class="login-right">
+    <button class="btn-icon" onclick="toggleDarkMode()" id="loginDarkModeBtn" style="position:absolute; top:20px; right:20px;">🌙</button>
+
+    <div class="login-form-box">
+      <h2 data-i="welcomeBack">Welcome Back</h2>
+      <p class="muted" data-i="signInDesc">Sign in to manage your companies and quotations.</p>
+
+      <div class="field" style="margin-bottom:20px;">
+        <label data-i="username">Username</label>
+        <input id="loginUser" value="is" style="padding:14px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font-size:14px;">
+      </div>
+      <div class="field" style="margin-bottom:30px;">
+        <label data-i="password">Password</label>
+        <input id="loginPass" type="password" value="1234" onkeydown="if(event.key==='Enter')doLogin()" style="padding:14px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font-size:14px;">
+      </div>
+
+      <button onclick="doLogin()" style="width:100%; padding:15px; background:var(--gold); color:#fff; font-size:16px; font-weight:800; border-radius:10px; transition:all 0.2s; box-shadow:0 6px 15px rgba(201, 155, 69, 0.4);" data-i="loginBtn">Login to Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app">
+<aside class="sidebar">
+ <div class="brand">
+    <div class="brand-header">
+        <img id="sidebarCompanyLogo" src="" alt="Logo">
+        <strong id="sidebarBrandName">MIGHTY HANDS</strong>
+    </div>
+    <small data-i="systemSmall">QUOTATION SYSTEM</small>
+ </div>
+ <nav class="nav">
+  <button class="active" data-page="dashboard" data-perm="" onclick="showPage('dashboard',this)">▦ <span data-i="dashboard">Dashboard</span></button>
+  <button data-page="quotes" data-perm="edit" onclick="showPage('quotes',this)">▤ <span data-i="allQuotes">All Quotations</span></button>
+  <button data-page="masters-customers" data-perm="master" onclick="showPage('masters-customers',this)">🏢 <span data-i="customers">Clients</span></button>
+  <button data-page="masters-vehicles" data-perm="master" onclick="showPage('masters-vehicles',this)">🚚 <span data-i="vehiclesMenu">Vehicles</span></button>
+  <button data-page="masters-payments" data-perm="master" onclick="showPage('masters-payments',this)">💳 <span data-i="paymentMenu">Payment Terms</span></button>
+
+  <button data-page="greeting-settings" data-perm="company" onclick="showPage('greeting-settings',this)">📝 <span data-i="greetingMenu">Message Setup</span></button>
+  <button data-page="company-settings" data-perm="company" onclick="showPage('company-settings',this)">⚙️ <span data-i="settings">Company Profile</span></button>
+
+  <button data-page="users-panel" data-perm="users" onclick="showPage('users-panel',this)">👥 <span data-i="usersPanel">User Panel</span></button>
+  <button data-page="permissions-panel" data-perm="users" onclick="showPage('permissions-panel',this)">🔐 <span data-i="permissions">Permissions</span></button>
+  <button data-page="user-profile" data-perm="" onclick="showPage('user-profile',this)">👤 <span data-i="myProfile">My Profile</span></button>
+ </nav>
+</aside>
+<main class="main">
+ <header class="topbar">
+   <h1 data-i="system">Quotation Management System</h1>
+   <div class="top-actions">
+
+     <div class="custom-select" id="companyDropdownWrapper">
+       <div class="custom-select-btn" onclick="toggleCompanyDropdown(event)">
+         <span id="companyDropdownLabel">Company Name</span>
+         <span style="font-size:10px;">▼</span>
+       </div>
+       <div class="custom-select-menu" id="companyDropdownMenu" onclick="event.stopPropagation()"></div>
+     </div>
+
+     <div class="profile-badge" onclick="showPage('user-profile', document.querySelector('[data-page=\'user-profile\']'))">
+        <img id="topUserAvatar" class="user-avatar" style="display:none;" alt="Avatar">
+        <div id="topUserFallback" class="fallback">U</div>
+        <span id="topUserName" style="font-weight:800; color:var(--heading); font-size:14px;">User</span>
+     </div>
+
+     <button class="btn-icon" onclick="toggleDarkMode()" id="darkModeBtn" title="Toggle Dark Mode">🌙</button>
+     <button class="btn-light" onclick="toggleLang()" id="langBtn">العربية</button>
+     <button class="btn-danger" onclick="doLogout()" data-i="logoutBtn">Logout</button>
+   </div>
+ </header>
+ <div class="content">
+
+  <section class="page active" id="dashboard">
+   <div class="welcome">
+     <div style="display:flex; align-items:center; gap:20px;">
+        <img id="dashCompanyLogo" style="max-height: 70px; border-radius: 8px; display: none; object-fit: contain; background: #fff; padding: 4px;">
+        <img id="dashWelcomeImage" style="max-height: 70px; border-radius: 8px; display: none; object-fit: contain;">
+        <div>
+            <h2><span id="dashWelcomeTitlePrefix">Welcome to</span> <span id="dashWelcomeName"></span></h2>
+            <div class="muted" id="dashWelcomeSubtitle">Overview of your quotation activity</div>
+        </div>
+     </div>
+   </div>
+
+   <div class="stats">
+    <div class="stat"><div class="label" data-i="totalQuotes">Total Quotations</div><div class="value" id="statCount">0</div><div class="sub" data-i="allRecords">All saved records</div></div>
+    <div class="stat"><div class="label" data-i="totalValue">Total Quotation Value (SAR)</div><div class="value" id="statValue">0</div><div class="sub" data-i="includingVat">Including VAT</div></div>
+    <div class="stat"><div class="label" data-i="drafts">Drafts</div><div class="value" id="statDraft">0</div><div class="sub" data-i="inProgress">In progress</div></div>
+    <div class="stat"><div class="label" data-i="approved">Approved</div><div class="value" id="statApproved">0</div><div class="sub" data-i="confirmed">Confirmed quotations</div></div>
+   </div>
+
+   <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px; margin-bottom: 22px;">
+     <div class="panel">
+       <h3>Quote Status</h3>
+       <div class="chart-container"><canvas id="statusChart"></canvas></div>
+     </div>
+     <div class="panel">
+       <h3>Monthly Revenue (SAR)</h3>
+       <div class="chart-container"><canvas id="revenueChart"></canvas></div>
+     </div>
+   </div>
+
+   <div class="panel"><div class="panel-head"><h3 data-i="recent">Recent Quotations</h3><button class="btn-light" onclick="showPage('quotes',document.querySelector('[data-page=quotes]'))" data-i="viewAll">View All</button></div><div class="table-wrap"><table><thead><tr><th>#</th><th data-i="number">Quote No.</th><th data-i="date">Date</th><th data-i="customer">Company</th><th data-i="total">Total (SAR)</th><th data-i="status">Status</th></tr></thead><tbody id="recentRows"></tbody></table></div></div>
+  </section>
+
+  <section class="page" id="new">
+   <div class="welcome"><div><h2 data-i="quoteDetails">Quotation Details</h2><div class="muted" data-i="fillDetails">Enter the information below to create a quotation</div></div></div>
+   <div class="panel">
+    <form id="quoteForm" onsubmit="saveQuote(event)">
+     <input type="hidden" id="editId">
+     <div class="form-grid">
+      <div class="section-title" data-i="general">GENERAL INFORMATION</div>
+      <div class="field"><label data-i="number">Quotation Number</label><input id="number" required></div>
+      <div class="field"><label data-i="date">Date</label><input id="date" type="date" required></div>
+      <div class="field"><label data-i="status">Status</label><select id="status">
+        <option value="Draft" data-i="draft">Draft</option>
+        <option value="Sent" data-i="sent">Sent</option>
+        <option value="Approved" data-i="approved">Approved</option>
+        <option value="Rejected" data-i="rejected">Rejected</option>
+      </select></div>
+
+      <div class="section-title" data-i="companyInfo">CLIENT INFORMATION</div>
+      <div class="field"><label data-i="customer">Company Name</label><select id="customer" required></select></div>
+      <div class="field span2"><label data-i="companyAddress">Company Address (auto-filled)</label><input id="companyAddress"></div>
+
+      <div class="section-title" data-i="vehicleInfo">VEHICLE DETAILS (ADD UNLIMITED ROWS)</div>
+      <div class="span3" id="vehicleItemsContainer"></div>
+      <div class="span3" style="margin-bottom: 10px;">
+        <button type="button" class="btn-primary btn-mini" onclick="addVehicleRow()" style="background:var(--gold); color:white;">＋ <span data-i="addAnother">Add Another Detail</span></button>
+      </div>
+
+      <div class="section-title" data-i="totals">TOTALS</div>
+      <div class="span3 totals">
+       <div class="total-item"><span data-i="subtotal">Subtotal</span><b id="vSubtotal">SAR 0.00</b><small id="vUsdSub">$0.00</small></div>
+       <div class="total-item"><span data-i="vatAmount">VAT Amount</span><b id="vVat">SAR 0.00</b><small id="vUsdVat">$0.00</small></div>
+       <div class="total-item"><span data-i="usdTotal">Total (USD)</span><b id="vUsdGrand">$0.00</b><small data-i="currencyNote">USD equivalent</small></div>
+       <div class="field" style="justify-content:center;"><label data-i="vat">VAT %</label><input id="vat" type="number" min="0" max="100" step=".01" value="15"></div>
+       <div class="total-item grand" style="grid-column:1/-1;"><span data-i="grandTotal">GRAND TOTAL</span><b id="vGrand">SAR 0.00</b><small id="vGrandUsd">$0.00 USD</small></div>
+      </div>
+
+      <div class="section-title" data-i="notesTerms">NOTES & PAYMENT TERMS</div>
+      <div class="field span3">
+        <label data-i="selectDefaultNote">Select a default note / Add new</label>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <input id="quickNoteInput" placeholder="Add new note..." style="flex:1;">
+          <button type="button" class="btn-mini" onclick="quickAddNote()" style="background:var(--blue); color:#fff;">＋ Add</button>
+        </div>
+        <div id="notesCheckboxes" class="checkbox-group"></div>
+      </div>
+      <div class="field span3"><label data-i="notes">Notes</label><textarea id="notes" rows="4"></textarea></div>
+
+      <div class="field span3">
+        <label data-i="payment">Payment Conditions</label>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <input id="quickPaymentInput" placeholder="Add new payment term..." style="flex:1;">
+          <button type="button" class="btn-mini" onclick="quickAddPayment()" style="background:var(--blue); color:#fff;">＋ Add</button>
+        </div>
+        <div id="paymentCheckboxes" class="checkbox-group"></div>
+      </div>
+      <div class="field span3"><label data-i="paymentFinal">Payment Conditions (final text)</label><textarea id="payment" rows="2"></textarea></div>
+     </div>
+
+     <div class="actions">
+       <button class="btn-primary" type="submit" data-i="save">Save Quotation</button>
+       <div class="dropdown">
+         <button class="btn-gold" type="button" onclick="toggleExportMenu(event)">Export ▾</button>
+         <div id="exportMenu" class="dropdown-content">
+           <button type="button" onclick="doExport('print')">🖨️ <span data-i="print">Print</span></button>
+           <button type="button" onclick="doExport('pdf')">📄 Download PDF</button>
+           <button type="button" onclick="doExport('excel')">📊 Download Excel</button>
+         </div>
+       </div>
+       <button class="btn-light" type="button" onclick="previewCurrent()" data-i="preview">Preview</button>
+       <button class="btn-light" type="button" onclick="resetForm()" data-i="clear">Clear</button>
+     </div>
+    </form>
+   </div>
+  </section>
+
+  <section class="page" id="quotes">
+   <div class="welcome">
+     <div><h2 data-i="allQuotes">All Quotations</h2><div class="muted" data-i="manage">Search, edit and print your quotations</div></div>
+     <button class="btn-gold" style="font-size:15px; padding:12px 20px;" onclick="newQuote()">＋ <span data-i="newQuote">New Quotation</span></button>
+   </div>
+   <div class="panel">
+     <div class="panel-head" style="position:relative; flex-wrap:wrap;">
+       <h3 data-i="records">Quotation Records</h3>
+       
+       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+         <input class="search" id="search" oninput="renderAll()" placeholder="Search by number or customer..." style="margin:0;">
+
+         <select class="filter-select" id="filterCompany" onchange="renderAll()">
+           <option value="">All Companies</option>
+         </select>
+
+         <div class="filter-dropdown">
+           <button class="btn-light" onclick="toggleFilterMenu(event)" style="padding:10px 15px; display:flex; align-items:center; gap:6px;">
+             <span>▼</span> <span data-i="filterStatus">Filter Status</span>
+           </button>
+           <div id="filterMenu" class="filter-menu" onclick="event.stopPropagation()">
+             <label class="filter-option"><input type="checkbox" value="Draft" onchange="toggleFilterStatus(this)"> <span data-i="draft">Draft</span></label>
+             <label class="filter-option"><input type="checkbox" value="Sent" onchange="toggleFilterStatus(this)"> <span data-i="sent">Sent</span></label>
+             <label class="filter-option"><input type="checkbox" value="Approved" onchange="toggleFilterStatus(this)"> <span data-i="approved">Approved</span></label>
+             <label class="filter-option"><input type="checkbox" value="Rejected" onchange="toggleFilterStatus(this)"> <span data-i="rejected">Rejected</span></label>
+             <div style="border-top:1px solid var(--line); margin-top:5px; padding-top:5px; text-align:center;">
+               <button class="btn-light btn-xs" onclick="clearFilters()" style="width:100%;" data-i="clearFilters">Clear Filters</button>
+             </div>
+           </div>
+         </div>
+       </div>
+       
+     </div>
+     <div class="table-wrap"><table><thead><tr><th>#</th><th data-i="number">Quote No.</th><th data-i="date">Date</th><th data-i="customer">Company</th><th data-i="total">Total (SAR)</th><th data-i="status">Status</th><th data-i="actions">Actions</th></tr></thead><tbody id="allRows"></tbody></table></div>
+   </div>
+  </section>
+
+  <section class="page" id="masters-customers">
+   <div class="welcome"><div><h2 data-i="customers">Clients</h2><div class="muted" data-i="manageCompanies">Manage your client companies and their addresses</div></div></div>
+   <div class="panel">
+    <h3 data-i="customers">Company List</h3>
+    <div class="form-grid">
+      <div class="field span2"><label data-i="customerName">Company Name</label><input id="masterCustomerName"></div>
+      <div class="field"><label data-i="companyAddress">Company Address</label><input id="masterCustomerAddress"></div>
+    </div>
+    <div style="margin-top:10px; display:flex; gap:8px;">
+      <button class="btn-primary" type="button" id="btnAddCustomer" onclick="addMaster('customers')">＋ <span data-i="addCustomer">Add Company</span></button>
+      <button class="btn-light" type="button" id="btnCancelCustomer" onclick="cancelEditMaster()" style="display:none;" data-i="cancel">Cancel</button>
+    </div>
+    <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>#</th><th data-i="customerName">Company</th><th data-i="companyAddress">Address</th><th data-i="actions">Actions</th></tr></thead><tbody id="customerMasterRows"></tbody></table></div>
+   </div>
+  </section>
+
+  <section class="page" id="masters-vehicles">
+   <div class="welcome"><div><h2 data-i="vehiclesMenu">Vehicles</h2><div class="muted" data-i="manageVehicles">Manage vehicle types and default costs</div></div></div>
+   <div class="panel">
+    <h3 data-i="vehiclesMaster">Vehicle Types & Default Costs</h3>
+    <div class="form-grid">
+      <div class="field"><label data-i="vehicleType">Vehicle Type</label><input id="masterVehicleName"></div>
+      <div class="field"><label data-i="defaultCost">Default cost per vehicle / day (SAR)</label><input id="masterVehicleCost" type="number" min="0" step=".01"></div>
+      <div class="field" style="justify-content:end; display:flex; gap:8px;">
+        <button class="btn-primary" type="button" id="btnAddVehicle" onclick="addMaster('vehicles')">＋ <span data-i="addVehicle">Add Vehicle</span></button>
+        <button class="btn-light" type="button" id="btnCancelVehicle" onclick="cancelEditMaster()" style="display:none;" data-i="cancel">Cancel</button>
+      </div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th data-i="vehicleType">Vehicle</th><th data-i="defaultCost">Default Cost (SAR)</th><th data-i="actions">Actions</th></tr></thead><tbody id="vehicleMasterRows"></tbody></table></div>
+   </div>
+  </section>
+
+  <section class="page" id="masters-payments">
+   <div class="welcome"><div><h2 data-i="paymentMenu">Payment Terms & Settings</h2><div class="muted" data-i="managePayments">Manage payment options and default notes</div></div></div>
+   <div class="panel" style="margin-bottom:16px">
+    <h3 data-i="paymentOptions">Payment Terms Options</h3>
+    <div class="form-grid">
+      <div class="field span2"><label data-i="payment">Payment condition</label><input id="masterPayment"></div>
+      <div class="field" style="justify-content:end; display:flex; gap:8px;">
+        <button class="btn-primary" type="button" id="btnAddPayment" onclick="addMaster('payments')">＋ <span data-i="addPayment">Add Payment Term</span></button>
+        <button class="btn-light" type="button" id="btnCancelPayment" onclick="cancelEditMaster()" style="display:none;" data-i="cancel">Cancel</button>
+      </div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th data-i="payment">Payment Term</th><th data-i="actions">Actions</th></tr></thead><tbody id="paymentMasterRows"></tbody></table></div>
+   </div>
+   <div class="panel">
+    <h3 data-i="standardNotes">Standard Notes (Default Options)</h3>
+    <div class="form-grid">
+      <div class="field span2"><label data-i="newDefaultNote">New Default Note</label><input id="masterNoteInput"></div>
+      <div class="field" style="justify-content:end; display:flex; gap:8px;">
+        <button class="btn-primary" type="button" id="btnAddNote" onclick="addMaster('notes')">＋ <span data-i="addNote">Add Note</span></button>
+        <button class="btn-light" type="button" id="btnCancelNote" onclick="cancelEditMaster()" style="display:none;" data-i="cancel">Cancel</button>
+      </div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>#</th><th data-i="notes">Default Note</th><th data-i="actions">Actions</th></tr></thead><tbody id="noteMasterRows"></tbody></table></div>
+   </div>
+  </section>
+
+  <section class="page" id="greeting-settings">
+   <div class="welcome"><div><h2 data-i="greetingMenu">Message Setup</h2><div class="muted" data-i="customizeText">Customize the text for the PDF</div></div></div>
+   <div class="panel">
+     <div class="form-grid">
+       <div class="field span3"><label data-i="introText">Introduction Text (Shows inside PDF)</label><textarea id="introTextInput" rows="3"></textarea></div>
+       <div class="field span3"><label data-i="closingText">Closing Text (Shows inside PDF)</label><textarea id="closingTextInput" rows="2"></textarea></div>
+     </div>
+     <div style="margin-top:15px;">
+       <button class="btn-primary" type="button" onclick="saveGreetings()" data-i="saveMessage">Save Message</button>
+     </div>
+   </div>
+  </section>
+
+  <section class="page" id="company-settings">
+   <div class="welcome"><div><h2 data-i="companyProfile">Company Profile & Design</h2><div class="muted" data-i="manageBranding">Manage companies, upload branding, and design PDF layouts.</div></div></div>
+
+   <div class="profile-split">
+     <div class="profile-left panel">
+       <h3 id="formTitle" data-i="addNewCompany">Add New Company</h3>
+       <input type="hidden" id="editCompanyId">
+
+       <div class="field">
+         <label data-i="companyNameSystem">Company Name (System Only)</label>
+         <input id="compName">
+       </div>
+
+       <div class="field">
+         <label data-i="companyLogo">Company Logo</label>
+         <div class="upload-box" style="align-items:center;">
+           <img id="logoPreview" src="" style="display:none;">
+           <div id="logoPlaceholder" style="height: 45px; width: 45px; display:flex; align-items:center; justify-content:center; background:var(--panel-bg); border:1px dashed var(--line); border-radius:4px; font-size:10px; font-weight:bold; color:var(--muted);">Logo</div>
+           <div style="flex:1; display:flex; flex-direction:column;">
+             <input id="compLogoFile" type="file" accept="image/*" onchange="handleLogoUpload(event)" style="width:100%;">
+             <div class="muted" style="font-size:10px; margin-top:4px;">Max: 1MB | Rec: 200x200px (Square)</div>
+           </div>
+           <input id="compLogo" type="hidden">
+         </div>
+       </div>
+
+       <div class="field">
+         <label data-i="a4Bg">A4 Background (PDF Only)</label>
+         <div class="upload-box">
+           <div class="a4-preview-box" id="a4PreviewBox">
+             <span class="a4-placeholder" id="a4Placeholder">A4</span>
+             <img id="a4Preview" src="" style="display:none;">
+           </div>
+           <div style="flex:1; display:flex; flex-direction:column;">
+             <input id="compA4File" type="file" accept="image/*" onchange="handleA4Upload(event)" style="width:100%;">
+             <div class="muted" style="font-size:10px; margin-top:4px;">Max: 3MB | Rec: A4 Portrait (210x297mm)</div>
+             <input id="compA4" type="hidden">
+           </div>
+         </div>
+       </div>
+
+       <div class="field">
+         <label data-i="pdfTheme">PDF Color Theme</label>
+         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
+           <button type="button" class="coolors-btn" onclick="generateCoolors()" data-i="generatePalette">🎲 Generate Palette</button>
+           <span class="muted" id="selectedThemeName" style="font-weight:800; color:var(--heading);">Classic Navy</span>
+         </div>
+         <div class="theme-studio" id="themePresets"></div>
+         <input id="compThemePrimary" type="hidden" value="#142b49">
+         <input id="compThemeSecondary" type="hidden" value="#245b8f">
+         <input id="compThemeAccent" type="hidden" value="#c99b45">
+         <input id="compThemeBg" type="hidden" value="#f3f6fa">
+       </div>
+
+       <div style="display:flex; gap:10px; margin-top:10px;">
+         <button class="btn-primary" type="button" onclick="saveCompany()" id="btnSaveCompany" style="flex:1;" data-i="addCompany">＋ Add Company</button>
+         <button class="btn-light" type="button" onclick="cancelEditCompany()" id="btnCancelCompany" style="display:none; flex:1;" data-i="cancelEdit">Cancel Edit</button>
+       </div>
+     </div>
+
+     <div class="profile-right panel" style="padding:15px;">
+       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+         <h3 style="margin:0;" data-i="visualDesigner">Visual PDF Designer</h3>
+         <button type="button" class="btn-primary btn-xs" onclick="autoAdjustLayout()" style="background:var(--gold);" data-i="autoArrange">✨ Auto-Arrange</button>
+       </div>
+
+       <div class="editor-workspace">
+         <div class="editor-canvas-wrapper">
+           <div id="pdfVisualEditor">
+             <div id="dragOffer" class="drag-item offer" data-key="offer" style="top:10%; left:75%; width:20%; height:12%;">
+               OFFER<br>000-000<br>2024-01-01
+             </div>
+
+             <div id="dragCustomer" class="drag-item" data-key="customer" style="top:20%; left:10%; width:60%; height:8%;">
+               <b>To:</b> Customer Name<br>
+               <span style="font-size:10px; color:#64748b;">Customer Address</span>
+             </div>
+
+             <div id="dragIntro" class="drag-item" data-key="intro" style="top:32%; left:10%; width:85%; height:10%;">
+               <div style="font-size:11px; color:#1e293b;">We are pleased to deal with you with reference to the above subject...</div>
+             </div>
+
+             <div id="dragTable" class="drag-item" data-key="table" style="top:45%; left:5%; width:90%; height:25%;">
+               <table class="mock-table">
+                 <colgroup>
+                   <col style="width:15%"><col style="width:25%"><col style="width:10%"><col style="width:10%"><col style="width:8%">
+                   <col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:8%">
+                 </colgroup>
+                 <thead>
+                   <tr>
+                     <th>Type</th><th>Desc</th><th>Start</th><th>End</th>
+                     <th>Qty</th><th>Days</th><th>Cost</th><th>Total SAR</th><th>Total USD</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   <tr>
+                     <td colspan="9" style="padding:15px;">Dynamic Rows</td>
+                   </tr>
+                 </tbody>
+               </table>
+               <div style="margin-top:5px; border:1px solid #cbd5e1; padding:5px; background:rgba(255,255,255,0.8); border-radius:4px;">
+                 <div style="display:flex; justify-content:space-between; font-size:10px;"><span>Subtotal:</span><span>SAR 0.00</span></div>
+                 <div style="display:flex; justify-content:space-between; font-size:10px; font-weight:bold; border-top:1px solid #ccc; margin-top:2px; padding-top:2px;"><span>Total:</span><span>SAR 0.00</span></div>
+               </div>
+             </div>
+
+             <div id="dragNotes" class="drag-item" data-key="notes" style="top:74%; left:10%; width:85%; height:10%;">
+               <b style="font-size:10px;">Notes & Terms:</b>
+               <div style="font-size:9px; color:#64748b; margin-top:2px;">Payment terms and conditions...</div>
+             </div>
+
+             <div id="dragClosing" class="drag-item" data-key="closing" style="top:88%; left:10%; width:85%; height:6%;">
+               <div style="font-size:11px; color:#1e293b;">We hope that this offer will satisfy you. Thank you.</div>
+             </div>
+           </div>
+         </div>
+
+         <div class="editor-properties">
+           <h4 data-i="blockSettings">Block Settings</h4>
+           <p id="noBlockSelected" class="muted" style="font-size:12px;" data-i="clickBlock">Click a block on the A4 page.</p>
+
+           <div id="propControls" style="display:none;">
+             <div class="prop-group">
+               <label data-i="font">Font</label>
+               <select id="propFont">
+                 <option value="Arial, sans-serif">Arial</option>
+                 <option value="'Times New Roman', serif">Times</option>
+                 <option value="'Courier New', monospace">Courier</option>
+                 <option value="Georgia, serif">Georgia</option>
+                 <option value="Verdana, sans-serif">Verdana</option>
+               </select>
+             </div>
+             <div style="display:flex; gap:10px;">
+               <div class="prop-group" style="flex:1;">
+                 <label data-i="size">Size (px)</label>
+                 <input type="number" id="propSize" min="8" max="30">
+               </div>
+               <div class="prop-group" style="flex:1;">
+                 <label data-i="height">Height (%)</label>
+                 <input type="number" id="propHeight" min="1" max="100">
+               </div>
+             </div>
+             <div class="prop-group">
+               <label data-i="color">Color</label>
+               <input type="color" id="propColor" class="color-picker">
+             </div>
+             <div class="prop-group">
+               <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:0; color:var(--ink);">
+                 <input type="checkbox" id="propBold" style="width:16px; height:16px;">
+                 <span data-i="boldText">Bold Text</span>
+               </label>
+             </div>
+             <button class="btn-danger" style="width:100%; margin-top:5px; padding:6px; font-size:11px;" onclick="hideSelectedBlock()" data-i="hideBlock">🗑️ Hide Block</button>
+           </div>
+
+           <div id="hiddenButtons" style="margin-top:15px; border-top:1px solid var(--line); padding-top:10px;"></div>
+         </div>
+       </div>
+
+       <input type="hidden" id="l_offerX" value="75"><input type="hidden" id="l_offerY" value="10"><input type="hidden" id="l_offerW" value="20"><input type="hidden" id="l_offerH" value="12">
+       <input type="hidden" id="l_customerX" value="10"><input type="hidden" id="l_customerY" value="20"><input type="hidden" id="l_customerW" value="60"><input type="hidden" id="l_customerH" value="8">
+       <input type="hidden" id="l_introX" value="10"><input type="hidden" id="l_introY" value="32"><input type="hidden" id="l_introW" value="85"><input type="hidden" id="l_introH" value="10">
+       <input type="hidden" id="l_tableX" value="5"><input type="hidden" id="l_tableY" value="45"><input type="hidden" id="l_tableW" value="90"><input type="hidden" id="l_tableH" value="25">
+       <input type="hidden" id="l_notesX" value="10"><input type="hidden" id="l_notesY" value="74"><input type="hidden" id="l_notesW" value="85"><input type="hidden" id="l_notesH" value="10">
+       <input type="hidden" id="l_closingX" value="10"><input type="hidden" id="l_closingY" value="88"><input type="hidden" id="l_closingW" value="85"><input type="hidden" id="l_closingH" value="6">
+     </div>
+   </div>
+
+   <div class="panel" style="margin-top:16px;">
+     <div class="table-wrap">
+       <table><thead><tr><th>#</th><th data-i="companyName">Company Name</th><th data-i="theme">Theme</th><th>A4</th><th data-i="actions">Actions</th></tr></thead><tbody id="companyRows"></tbody></table>
+     </div>
+   </div>
+  </section>
+
+  <section class="page" id="users-panel">
+   <div class="welcome"><div><h2 data-i="usersPanel">User Panel</h2><div class="muted" data-i="manageUsers">Create and manage system users.</div></div></div>
+   <div class="panel" style="margin-bottom:16px">
+     <h3 id="formTitleUser" data-i="addNewUser">Add New User</h3>
+     <input type="hidden" id="editUserId">
+     <div class="form-grid">
+       <div class="field"><label data-i="fullName">Full Name</label><input id="newUserName"></div>
+       <div class="field"><label data-i="username">Username</label><input id="newUserUsername"></div>
+       <div class="field"><label data-i="password">Password</label><input id="newUserPassword" type="password"></div>
+       <div class="field"><label>Email</label><input id="newUserEmail" type="email"></div>
+       
+       <div class="field">
+         <label>Mobile No</label>
+         <div style="display:flex; gap:6px;">
+             <select id="newUserCountryCode" class="emoji-font" style="width:110px; padding:10px; flex-shrink:0;">
+                 <option value="+966">🇸🇦 +966</option>
+                 <option value="+971">🇦🇪 +971</option>
+                 <option value="+965">🇰🇼 +965</option>
+                 <option value="+973">🇧🇭 +973</option>
+                 <option value="+974">🇶🇦 +974</option>
+                 <option value="+968">🇴🇲 +968</option>
+                 <option value="+20">🇪🇬 +20</option>
+                 <option value="+962">🇯🇴 +962</option>
+                 <option value="+961">🇱🇧 +961</option>
+                 <option value="+1">🇺🇸 +1</option>
+                 <option value="+44">🇬🇧 +44</option>
+                 <option value="+90">🇹🇷 +90</option>
+                 <option value="+91">🇮🇳 +91</option>
+                 <option value="+63">🇵🇭 +63</option>
+                 <option value="+92">🇵🇰 +92</option>
+             </select>
+             <input id="newUserMobile" type="tel" placeholder="50xxxxxxx" style="flex:1;">
+         </div>
+       </div>
+       
+       <div class="field"><label data-i="role">Role</label><select id="newUserRole"></select></div>
+
+       <div class="field">
+         <label data-i="profilePicture">Profile Picture</label>
+         <input type="file" id="newUserPicture" accept="image/*" onchange="handleUserPicture(event)" style="padding:8px;">
+         <div class="muted" style="font-size:10px; margin-top:2px;">Max: 500KB | Rec: 200x200px</div>
+         <div id="userPicPreviewContainer" style="margin-top:5px; display:none;">
+            <img id="userPreview" class="user-avatar">
+         </div>
+       </div>
+
+       <div class="field span2">
+         <label data-i="allowedCompanies">Allowed Companies (Select multiple)</label>
+         <div id="userAllowedCompanies" class="checkbox-group" style="max-height: 120px;"></div>
+       </div>
+     </div>
+     <div style="margin-top:10px; display:flex; gap:10px;">
+       <button class="btn-primary" type="button" onclick="addUser()" id="btnSaveUser" data-i="addUser">＋ Add User</button>
+       <button class="btn-light" type="button" onclick="resetUserForm()" id="btnCancelUser" style="display:none;" data-i="cancelEdit">Cancel Edit</button>
+     </div>
+     <div class="table-wrap" style="margin-top:12px">
+       <table><thead><tr><th>#</th><th data-i="name">Name</th><th data-i="username">Username</th><th>Email</th><th>Mobile</th><th data-i="role">Role</th><th data-i="allowedCompanies">Allowed Companies</th><th data-i="actions">Actions</th></tr></thead><tbody id="usersRows"></tbody></table>
+     </div>
+   </div>
+  </section>
+
+  <section class="page" id="permissions-panel">
+   <div class="welcome"><div><h2 data-i="permissions">Permissions & Roles</h2><div class="muted" data-i="assignRoles">Assign access levels and create custom roles.</div></div></div>
+   <div class="panel">
+     <div class="form-grid" style="margin-bottom:15px;">
+       <div class="field span2"><label data-i="addRole">Add New Role</label><input id="newRoleName"></div>
+       <div class="field" style="justify-content:end;">
+         <button class="btn-primary" type="button" onclick="addRole()" data-i="addRole">＋ Add Role</button>
+       </div>
+     </div>
+     <div class="table-wrap">
+       <table>
+         <thead id="permissionsTableHead"></thead>
+         <tbody id="permissionsTableBody"></tbody>
+       </table>
+     </div>
+     <div style="margin-top:15px;">
+       <button class="btn-primary" type="button" onclick="savePermissions()" data-i="savePermissions">Save Permissions</button>
+     </div>
+   </div>
+  </section>
+
+  <!-- My Profile -->
+  <section class="page" id="user-profile">
+   <div class="welcome"><div><h2 data-i="myProfile">My Profile</h2><div class="muted" data-i="customizeSystem">Manage your personal info, interface, and system settings.</div></div></div>
+   
+   <div class="panel" style="margin-bottom:16px; max-width: 900px;">
+     <h3>Personal Information</h3>
+     <div class="form-grid">
+       <div class="field">
+         <label>Name</label>
+         <input id="profName" readonly style="background:var(--bg); opacity:0.7; cursor:not-allowed;">
+       </div>
+       <div class="field">
+         <label>Email</label>
+         <input id="profEmail" type="email" readonly style="background:var(--bg); opacity:0.7; cursor:not-allowed;">
+       </div>
+       <div class="field">
+         <label>Mobile No</label>
+         <input id="profMobile" type="tel" readonly style="background:var(--bg); opacity:0.7; cursor:not-allowed;">
+       </div>
+       <div class="field">
+         <label>New Password</label>
+         <input id="profNewPass" type="password" placeholder="Leave blank to keep current">
+       </div>
+       <div class="field">
+         <label>Profile Picture</label>
+         <input type="file" id="profPicFile" accept="image/*" onchange="handleProfPicUpload(event)">
+         <div class="muted" style="font-size:10px; margin-top:2px;">Max: 500KB | Rec: 200x200px</div>
+         <div style="margin-top: 5px;">
+            <img id="profPicPreview" class="user-avatar" style="width: 50px; height: 50px; display: none;">
+         </div>
+       </div>
+     </div>
+     <div style="margin-top:15px;">
+       <button class="btn-primary" onclick="saveMyProfile()">Save Profile</button>
+     </div>
+   </div>
+
+   <!-- ADMIN ONLY PANELS -->
+   <div id="adminOnlyPanels" style="display:none; max-width: 900px;">
+     
+     <!-- PANEL 2: Login Screen Customization -->
+     <div class="panel" style="margin-bottom:16px;">
+       <h3>Customize Login Screen (Admin Only)</h3>
+       <div class="form-grid">
+         <div class="field">
+           <label>Main Title</label>
+           <input id="loginSetTitle" placeholder="Quotation Management System">
+         </div>
+         <div class="field span2">
+           <label>Brand Name</label>
+           <input id="loginSetBrand" placeholder="MIGHTY HANDS">
+         </div>
+         <div class="field span3">
+           <label>Description Text</label>
+           <textarea id="loginSetDesc" rows="2" placeholder="Streamline your business operations..."></textarea>
+         </div>
+         
+         <div class="field span3">
+           <label>Login Logo (Optional)</label>
+           <div class="upload-box" style="align-items:center;">
+             <div style="flex:1; display:flex; flex-direction:column;">
+                <input type="file" id="loginSetLogoFile" accept="image/*" onchange="handleLoginLogoUpload(event)" style="width:100%;">
+                <div class="muted" style="font-size:10px; margin-top:4px;">Max: 500KB | Rec: 200x200px</div>
+             </div>
+             <input type="hidden" id="loginSetLogo">
+           </div>
+           <div id="loginLogoPreviewBox" style="display:none; align-items:center; gap:10px; background:var(--bg); padding:10px; border-radius:8px; border:1px solid var(--line); margin-top:5px;">
+              <img id="loginLogoPreview" style="height:40px; border-radius:4px; background:#fff; padding:2px;">
+              <button class="btn-light btn-xs" onclick="removeLoginLogo()" style="color:var(--red);">Remove Logo</button>
+           </div>
+         </div>
+
+         <div class="field span3">
+           <label>Background Image (Optional)</label>
+           <div style="display:flex; flex-direction:column; gap:10px;">
+              <div class="upload-box" style="align-items:center;">
+                <div style="flex:1; display:flex; flex-direction:column;">
+                    <input type="file" id="loginSetImgFile" accept="image/*" onchange="handleLoginImgUpload(event)" style="width:100%;">
+                    <div class="muted" style="font-size:10px; margin-top:4px;">Max: 3MB | Rec: Landscape (1920x1080px)</div>
+                </div>
+                <input type="hidden" id="loginSetImg">
+              </div>
+              <div id="loginImgPreviewBox" style="display:none; align-items:center; gap:10px; background:var(--bg); padding:10px; border-radius:8px; border:1px solid var(--line);">
+                 <img id="loginImgPreview" style="height:50px; border-radius:4px;">
+                 <button class="btn-light btn-xs" onclick="removeLoginBg()" style="color:var(--red);">Remove Image</button>
+              </div>
+           </div>
+         </div>
+       </div>
+       <div style="margin-top:15px; display:flex; gap:10px;">
+         <button class="btn-primary" onclick="saveLoginSettings()">Save Settings</button>
+       </div>
+     </div>
+
+     <!-- PANEL 3: Dashboard Customization (Per Company) -->
+     <div class="panel" style="margin-bottom:16px;">
+       <h3>Dashboard Welcome Customization (Admin Only)</h3>
+       <div class="form-grid">
+         <div class="field">
+           <label>Welcome Prefix</label>
+           <input id="dashSetPrefix" placeholder="e.g., Welcome to">
+         </div>
+         <div class="field span2">
+           <label>Subtitle Text</label>
+           <input id="dashSetSubtitle" placeholder="e.g., Overview of your quotation activity">
+         </div>
+         <div class="field span3">
+           <label>Welcome Image (Optional)</label>
+           <div class="upload-box" style="align-items:center;">
+             <img id="dashImgPreview" style="height: 60px; display: none; border-radius: 8px;">
+             <div style="flex:1; display:flex; flex-direction:column;">
+                <input type="file" id="dashSetImgFile" accept="image/*" onchange="handleDashImgUpload(event)" style="width:100%;">
+                <div class="muted" style="font-size:10px; margin-top:4px;">Max: 1MB | Rec: 400x200px</div>
+             </div>
+             <input type="hidden" id="dashSetImg">
+           </div>
+         </div>
+       </div>
+       <div style="margin-top:15px; display:flex; gap:10px;">
+         <button class="btn-primary" onclick="saveDashboardSettings()">Save Dashboard Settings</button>
+       </div>
+     </div>
+
+   </div> <!-- End Admin Only Panels -->
+
+   <!-- PANEL 4: Interface Theme -->
+   <div class="panel" style="max-width: 900px;">
+     <h3 data-i="interfaceTheme">Interface Theme</h3>
+     <p class="muted" style="margin-bottom:15px;" data-i="selectThemeDesc">Select a color theme to apply to the system interface.</p>
+     <div class="theme-studio" id="uiThemePresets"></div>
+   </div>
+  </section>
+
+  <section class="page" id="printArea"></section>
+ </div>
+</main></div><div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const EXCHANGE_RATE = 3.75;
+const LS = {
+  companies: "mh_companies_v8",
+  users:     "mh_users_v8",
+  quotes:    "mh_quotes_v8",
+  perms:     "mh_perms_v8",
+  activeCo:  "mh_active_company_v8",
+  roles:     "mh_roles_v8",
+  uiTheme:   "mh_ui_theme_v1",
+  darkMode:  "mh_dark_mode_v1",
+  loginSettings: "mh_login_settings_v1"
+};
+
+let lang = "en", quotes = [], currentUser = null;
+let activeCompanyId = null;
+let selectedBlockKey = null;
+let editingCompanyId = null;
+let draftLayout = null;
+let editingMaster = { type: null, index: null };
+let isDragging = false, currentDrag = null, offsetX = 0, offsetY = 0;
+let _dragReady = false;
+
+let filterStatuses = [];
+let statusChartInstance = null;
+let revenueChartInstance = null;
+let _chartTimer = null;
+
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   STORAGE BOOTSTRAP & THEMES
+   ============================================================ */
+const defaultLayout = {
+  offer:    { x: 75, y: 10, w: 20, h: 12, hidden: false, fontFamily: 'Arial, sans-serif', fontSize: 14, color: '#ffffff', bold: true },
+  customer: { x: 10, y: 20, w: 60, h: 8,  hidden: false, fontFamily: 'Arial, sans-serif', fontSize: 14, color: '#142b49', bold: true },
+  intro:    { x: 10, y: 32, w: 85, h: 10, hidden: false, fontFamily: 'Arial, sans-serif', fontSize: 12, color: '#1e293b', bold: true },
+  table:    { x: 5,  y: 45, w: 90, h: 25, hidden: false, fontFamily: 'Arial, sans-serif', fontSize: 11, color: '#1e293b', bold: true },
+  notes:    { x: 10, y: 74, w: 85, h: 10, hidden: false, fontFamily: 'Arial, sans-serif', fontSize: 12, color: '#64748b', bold: true },
+  closing:  { x: 10, y: 88, w: 85, h: 6,  hidden: false, fontFamily: 'Arial, sans-serif', fontSize: 12, color: '#1e293b', bold: true }
+};
+
+const defaultDashboardSettings = {
+  prefix: "Welcome to",
+  subtitle: "Overview of your quotation activity",
+  image: ""
+};
+
+const defaultLoginSettings = {
+  mainTitle: "Quotation Management System",
+  descText: "Streamline your business operations...",
+  brandName: "MIGHTY HANDS",
+  logo: "",
+  bgImage: ""
+};
+
+let loginSettings = JSON.parse(localStorage.getItem(LS.loginSettings) || "null");
+if (!loginSettings) {
+  loginSettings = JSON.parse(JSON.stringify(defaultLoginSettings));
+  localStorage.setItem(LS.loginSettings, JSON.stringify(loginSettings));
+}
+
+const uiThemes = [
+  { name:"Classic Navy", primary:"#142b49", secondary:"#245b8f", accent:"#c99b45", bg:"#f3f6fa" },
+  { name:"Emerald",      primary:"#064e3b", secondary:"#047857", accent:"#f59e0b", bg:"#ecfdf5" },
+  { name:"Crimson",      primary:"#7f1d1d", secondary:"#b91c1c", accent:"#fbbf24", bg:"#fef2f2" },
+  { name:"Midnight",     primary:"#1e1b4b", secondary:"#4338ca", accent:"#10b981", bg:"#eef2ff" },
+  { name:"Coral",        primary:"#831843", secondary:"#be185d", accent:"#f97316", bg:"#fdf2f8" }
+];
+
+const pdfThemes = [
+  { name:"Classic Navy", primary:"#142b49", secondary:"#245b8f", accent:"#c99b45", bg:"#f3f6fa" },
+  { name:"Emerald",      primary:"#064e3b", secondary:"#047857", accent:"#f59e0b", bg:"#ecfdf5" },
+  { name:"Crimson",      primary:"#7f1d1d", secondary:"#b91c1c", accent:"#fbbf24", bg:"#fef2f2" },
+  { name:"Midnight",     primary:"#1e1b4b", secondary:"#4338ca", accent:"#10b981", bg:"#eef2ff" },
+  { name:"Coral",        primary:"#831843", secondary:"#be185d", accent:"#f97316", bg:"#fdf2f8" }
+];
+
+let companies = JSON.parse(localStorage.getItem(LS.companies) || "null");
+if (!Array.isArray(companies) || !companies.length) {
+  companies = [{
+    id: 1, name: "MIGHTY HANDS CO.", logo: "", a4Design: "",
+    greetings: {
+      intro: "We are pleased to deal with you with reference to the above subject...",
+      closing: "We hope that this offer will satisfy you. Thank you."
+    },
+    theme: { name:"Classic Navy", primary:"#142b49", secondary:"#245b8f", accent:"#c99b45", bg:"#f3f6fa" },
+    layout: JSON.parse(JSON.stringify(defaultLayout)),
+    dashboardSettings: JSON.parse(JSON.stringify(defaultDashboardSettings)),
+    customers: [{ name:"THE TRAVELING PAINTER", address:"Riyadh, Saudi Arabia" }],
+    vehicles: [{ name:"Haice - Alula", cost:900 }],
+    payments: ["1. 100% starting Project"],
+    notesList: ["1. Cars are modern and insured.", "2. Trained drivers.", "3. No problem to Branding the Vehicle."]
+  }];
+  localStorage.setItem(LS.companies, JSON.stringify(companies));
+}
+
+let users = JSON.parse(localStorage.getItem(LS.users) || "null");
+if (!Array.isArray(users) || !users.length) {
+  users = [{ id:1, name:"Admin", username:"is", password:"1234", role:"Admin", picture:"", allowedCompanies:[], email:"admin@example.com", mobile:"+966 1234567890" }];
+  localStorage.setItem(LS.users, JSON.stringify(users));
+}
+
+let roles = JSON.parse(localStorage.getItem(LS.roles) || "null");
+if (!Array.isArray(roles) || !roles.length) {
+  roles = ["Admin", "User"];
+  localStorage.setItem(LS.roles, JSON.stringify(roles));
+}
+
+/* ============================================================
+   TRANSLATIONS
+   ============================================================ */
+const translations = {
+en:{dashboard:"Dashboard",newQuote:"New Quotation",allQuotes:"All Quotations",system:"Quotation Management System",systemSmall:"QUOTATION SYSTEM",welcome:"Welcome to",overview:"Overview of your quotation activity",totalQuotes:"Total Quotations",allRecords:"All saved records",totalValue:"Total Quotation Value (SAR)",includingVat:"Including VAT",drafts:"Drafts",inProgress:"In progress",approved:"Approved",confirmed:"Confirmed quotations",recent:"Recent Quotations",viewAll:"View All",number:"Quote No.",date:"Date",customer:"Company Name",total:"Total (SAR)",status:"Status",quoteDetails:"Quotation Details",fillDetails:"Enter the information below to create a quotation",general:"GENERAL INFORMATION",companyInfo:"CLIENT INFORMATION",vehicleInfo:"VEHICLE DETAILS",vehicleType:"Type of Vehicle",description:"Description",starting:"Starting",ending:"End",vehicles:"Vehicles",days:"Days",daysLabel:"Days",costVehicle:"Cost per Vehicle",cost:"Cost",vat:"VAT %",totals:"TOTALS",vatAmount:"VAT Amount",grandTotal:"Grand Total",usdTotal:"Total (USD)",currencyNote:"USD equivalent",notesTerms:"NOTES & PAYMENT TERMS",notes:"Notes",selectDefaultNote:"Select a default note / Add new",payment:"Payment Conditions",paymentFinal:"Payment Conditions (final text)",save:"Save Quotation",preview:"Preview",clear:"Clear",manage:"Search, edit and print your quotations",records:"Quotation Records",actions:"Actions",edit:"Edit",print:"Print",delete:"Delete",saved:"Quotation saved successfully",deleted:"Quotation deleted",confirmDelete:"Delete this?",noRecords:"No records found",to:"To",intro:"We are pleased to deal with you with reference to the above subject, and upon your request, we MIGHTY HANDS co.\nWould like to offer you our quotation for (Transportation), as follows:",totalCost:"Total Cost",totalCostS:"Total Cost $",subTotal:"SUB TOTAL",paymentTerms:"Payment condition",closing:"We hope that this offer will satisfy you. Please accept our regards and respect. Thank you.",companyAddress:"Company Address",customers:"Clients",vehiclesMenu:"Vehicles",paymentMenu:"Payment Terms",greetingMenu:"Message Setup",settings:"Company Profile",manageCompanies:"Manage your client companies and their addresses",manageVehicles:"Manage vehicle types and default costs",managePayments:"Manage payment options and default notes",customerName:"Company Name",addCustomer:"Add Company",vehiclesMaster:"Vehicle Types & Default Costs",defaultCost:"Default cost per vehicle / day (SAR)",addVehicle:"Add Vehicle",standardNotes:"Standard Notes (Default Options)",newDefaultNote:"New Default Note",addNote:"Add Note",paymentOptions:"Payment Terms Options",addPayment:"Add Payment Term",myProfile:"My Profile",usersPanel:"User Panel",permissions:"Permissions",subtotal:"Subtotal",backToList:"Back to List",noPermission:"You do not have permission to access this section.",
+welcomeBack:"Welcome Back", signInDesc:"Sign in to manage your companies and quotations.", username:"Username", password:"Password", loginBtn:"Login to Dashboard", logoutBtn:"Logout",
+addAnother:"Add Another Detail", filterStatus:"Filter Status", clearFilters:"Clear Filters", cancel:"Cancel", customizeText:"Customize the text for the PDF", introText:"Introduction Text (Shows inside PDF)", closingText:"Closing Text (Shows inside PDF)", saveMessage:"Save Message",
+companyProfile:"Company Profile & Design", manageBranding:"Manage companies, upload branding, and design PDF layouts.", addNewCompany:"Add New Company", companyNameSystem:"Company Name (System Only)", companyLogo:"Company Logo", a4Bg:"A4 Background (PDF Only)", a4Desc:"Upload a portrait image designed for A4 size (210x297mm).", pdfTheme:"PDF Color Theme", generatePalette:"🎲 Generate Palette", addCompany:"＋ Add Company", cancelEdit:"Cancel Edit", visualDesigner:"Visual PDF Designer", autoArrange:"✨ Auto-Arrange",
+blockSettings:"Block Settings", clickBlock:"Click a block on the A4 page.", font:"Font", size:"Size (px)", height:"Height (%)", color:"Color", boldText:"Bold Text", hideBlock:"🗑️ Hide Block",
+manageUsers:"Create and manage system users.", addNewUser:"Add New User", fullName:"Full Name", role:"Role", profilePicture:"Profile Picture", allowedCompanies:"Allowed Companies", name:"Name", addUser:"＋ Add User",
+assignRoles:"Assign access levels and create custom roles.", addRole:"Add Role", savePermissions:"Save Permissions", customizeSystem:"Manage your personal info, interface, and system settings.", interfaceTheme:"Interface Theme", selectThemeDesc:"Select a color theme to apply to the system interface.",
+draft:"Draft", sent:"Sent", rejected:"Rejected", theme:"Theme", companyName:"Company Name", updateCompany:"Update Company", updateVehicle:"Update Vehicle", updateTerm:"Update Term", updateNote:"Update Note", userSaved:"User saved successfully!", roleAdded:"Role added successfully", roleUpdated:"Role updated!", roleDeleted:"Role deleted", permissionsSaved:"Permissions saved!", companySaved:"Company saved!", messageSaved:"Message saved!", themeUpdated:"Interface theme updated!", noRoleExists:"Role already exists", cannotDeleteAdmin:"Cannot delete Admin role", deleteRoleConfirm:"Delete role \"{role}\"?\nUsers with this role will be changed to \"User\".", blocksArranged:"Blocks auto-arranged to fit content!", imageTooLarge:"Image too large. Max {size}.", userCannotDeleteSelf:"You cannot delete the user you are logged in as.", cannotDeleteLastAdmin:"Cannot delete the last admin.", cannotDeleteOnlyCompany:"Cannot delete the only company.", invalidCredentials:"Invalid credentials!", fillAllFields:"Please fill all fields", usernameExists:"Username already exists", enterCompanyName:"Enter company name", enterVehicleType:"Enter vehicle type", enterPaymentTerm:"Enter payment term", enterNote:"Enter note", addAtLeastOneVehicle:"Add at least one vehicle detail", selectCompanyFirst:"Select company", quoteNumberRequired:"Enter quote number", update:"Update", profileUpdated:"Profile updated successfully!", dashboardSetup:"Dashboard Setup", dashboardSettingsSaved:"Dashboard settings saved!", loginSettingsSaved:"Login screen settings saved!"},
+ar:{dashboard:"لوحة التحكم",newQuote:"عرض سعر جديد",allQuotes:"جميع عروض الأسعار",system:"نظام إدارة عروض الأسعار",systemSmall:"نظام عروض الأسعار",welcome:"مرحباً بك في",overview:"نظرة عامة على نشاط عروض الأسعار",totalQuotes:"إجمالي العروض",allRecords:"جميع السجلات المحفوظة",totalValue:"إجمالي قيمة العروض (ريال)",includingVat:"شاملاً الضريبة",drafts:"مسودات",inProgress:"قيد الإعداد",approved:"معتمدة",confirmed:"العروض المؤكدة",recent:"أحدث عروض الأسعار",viewAll:"عرض الكل",number:"رقم العرض",date:"التاريخ",customer:"اسم الشركة",total:"الإجمالي (ريال)",status:"الحالة",quoteDetails:"تفاصيل عرض السعر",fillDetails:"أدخل البيانات التالية لإنشاء عرض سعر",general:"المعلومات العامة",companyInfo:"معلومات العميل",vehicleInfo:"تفاصيل المركبة",vehicleType:"نوع المركبة",description:"الوصف",starting:"البداية",ending:"النهاية",vehicles:"عدد المركبات",days:"الأيام",daysLabel:"الأيام",costVehicle:"تكلفة المركبة",cost:"التكلفة",vat:"الضريبة %",totals:"الإجماليات",vatAmount:"قيمة الضريبة",grandTotal:"الإجمالي النهائي",usdTotal:"الإجمالي (دولار)",currencyNote:"ما يعادلها بالدولار",notesTerms:"ملاحظات وشروط الدفع",notes:"ملاحظات",selectDefaultNote:"اختر ملاحظة افتراضية / أضف جديدة",payment:"شروط الدفع",paymentFinal:"شروط الدفع (النص النهائي)",save:"حفظ عرض السعر",preview:"معاينة",clear:"مسح",manage:"ابحث وعدّل واطبع عروض الأسعار",records:"سجل عروض الأسعار",actions:"الإجراءات",edit:"تعديل",print:"طباعة",delete:"حذف",saved:"تم حفظ عرض السعر",deleted:"تم حذف العرض",confirmDelete:"هل تريد الحذف؟",noRecords:"لا توجد سجلات",to:"إلى",intro:"يسرنا التعامل معكم بالإشارة إلى الموضوع أعلاه، وبناءً على طلبكم، فإننا شركة MIGHTY HANDS\nنود أن نقدم لكم عرض السعر الخاص بـ (خدمات النقل)، على النحو التالي:",totalCost:"التكلفة الإجمالية",totalCostS:"التكلفة الإجمالية $",subTotal:"المجموع الفرعي",paymentTerms:"شروط الدفع",closing:"نأمل أن ينال عرضنا رضاكم، وتفضلوا بقبول فائق الاحترام والتقدير.",companyAddress:"عنوان الشركة",customers:"العملاء",vehiclesMenu:"المركبات",paymentMenu:"شروط الدفع",greetingMenu:"إعداد الرسالة",settings:"ملف الشركة",manageCompanies:"إدارة شركات العملاء وعناوينهم",manageVehicles:"إدارة أنواع المركبات والتكاليف الافتراضية",managePayments:"إدارة شروط الدفع والملاحظات الافتراضية",customerName:"اسم الشركة",addCustomer:"إضافة شركة",vehiclesMaster:"أنواع المركبات والتكاليف الافتراضية",defaultCost:"التكلفة الافتراضية للمركبة / اليوم (ريال)",addVehicle:"إضافة مركبة",standardNotes:"الملاحظات الثابتة (خيارات افتراضية)",newDefaultNote:"ملاحظة افتراضية جديدة",addNote:"إضافة ملاحظة",paymentOptions:"خيارات شروط الدفع",addPayment:"إضافة شرط دفع",myProfile:"ملفي الشخصي",usersPanel:"إدارة المستخدمين",permissions:"الصلاحيات",subtotal:"المجموع الفرعي",backToList:"رجوع للقائمة",noPermission:"لا تملك صلاحية الوصول لهذا القسم.",
+welcomeBack:"مرحباً بعودتك", signInDesc:"تسجيل الدخول لإدارة شركاتك وعروض الأسعار.", username:"اسم المستخدم", password:"كلمة المرور", loginBtn:"تسجيل الدخول", logoutBtn:"تسجيل الخروج",
+addAnother:"إضافة تفصيل آخر", filterStatus:"تصفية حسب الحالة", clearFilters:"مسح الفلاتر", cancel:"إلغاء", customizeText:"تخصيص النص لملف PDF", introText:"نص المقدمة (يظهر في PDF)", closingText:"نص الخاتمة (يظهر في PDF)", saveMessage:"حفظ الرسالة",
+companyProfile:"ملف الشركة والتصميم", manageBranding:"إدارة الشركات، تحميل الشعارات، وتصميم تخطيطات PDF.", addNewCompany:"إضافة شركة جديدة", companyNameSystem:"اسم الشركة (للنظام فقط)", companyLogo:"شعار الشركة", a4Bg:"خلفية A4 (PDF فقط)", a4Desc:"تحميل صورة عمودية مصممة بحجم A4 (210x297 ملم).", pdfTheme:"سمة ألوان PDF", generatePalette:"🎲 إنشاء لوحة ألوان", addCompany:"＋ إضافة شركة", cancelEdit:"إلغاء التعديل", visualDesigner:"مصمم PDF المرئي", autoArrange:"✨ ترتيب تلقائي",
+blockSettings:"إعدادات الكتلة", clickBlock:"انقر على كتلة في صفحة A4.", font:"الخط", size:"الحجم (بكسل)", height:"الارتفاع (%)", color:"اللون", boldText:"نص عريض", hideBlock:"🗑️ إخفاء الكتلة",
+manageUsers:"إنشاء وإدارة مستخدمي النظام.", addNewUser:"إضافة مستخدم جديد", fullName:"الاسم الكامل", role:"الدور", profilePicture:"صورة الملف الشخصي", allowedCompanies:"الشركات المسموح بها", name:"الاسم", addUser:"＋ إضافة مستخدم",
+assignRoles:"تعيين مستويات الوصول وإنشاء أدوار مخصصة.", addRole:"إضافة دور", savePermissions:"حفظ الصلاحيات", customizeSystem:"إدارة معلوماتك الشخصية ومظهر الواجهة.", interfaceTheme:"سمة الواجهة", selectThemeDesc:"اختر سمة لونية لتطبيقها على واجهة النظام.",
+draft:"مسودة", sent:"مرسل", rejected:"مرفوض", theme:"السمة", companyName:"اسم الشركة", updateCompany:"تحديث الشركة", updateVehicle:"تحديث المركبة", updateTerm:"تحديث الشرط", updateNote:"تحديث الملاحظة", userSaved:"تم حفظ المستخدم!", roleAdded:"تمت إضافة الدور", roleUpdated:"تم تحديث الدور!", roleDeleted:"تم حذف الدور", permissionsSaved:"تم حفظ الصلاحيات!", companySaved:"تم حفظ الشركة!", messageSaved:"تم حفظ الرسالة!", themeUpdated:"تم تحديث سمة الواجهة!", noRoleExists:"الدور موجود بالفعل", cannotDeleteAdmin:"لا يمكن حذف دور المدير", deleteRoleConfirm:"حذف الدور \"{role}\"?\nسيتم تغيير المستخدمين بهذا الدور إلى \"User\".", blocksArranged:"تم ترتيب الكتل تلقائياً!", imageTooLarge:"الصورة كبيرة جداً. الحد {size}.", userCannotDeleteSelf:"لا يمكنك حذف المستخدم المسجل حالياً.", cannotDeleteLastAdmin:"لا يمكن حذف آخر مدير.", cannotDeleteOnlyCompany:"لا يمكن حذف الشركة الوحيدة.", invalidCredentials:"بيانات الدخول غير صحيحة!", fillAllFields:"يرجى ملء جميع الحقول", usernameExists:"اسم المستخدم موجود بالفعل", enterCompanyName:"أدخل اسم الشركة", enterVehicleType:"أدخل نوع المركبة", enterPaymentTerm:"أدخل شرط الدفع", enterNote:"أدخل الملاحظة", addAtLeastOneVehicle:"أضف تفصيل مركبة واحد على الأقل", selectCompanyFirst:"اختر الشركة", quoteNumberRequired:"أدخل رقم العرض", update:"تحديث", profileUpdated:"تم تحديث الملف الشخصي بنجاح!", dashboardSetup:"إعداد لوحة التحكم", dashboardSettingsSaved:"تم حفظ إعدادات لوحة التحكم!", loginSettingsSaved:"تم حفظ إعدادات شاشة الدخول!"}
+};
+
+const FEATURES = [
+  { key: 'create', name: 'Create Quotation' },
+  { key: 'edit', name: 'Edit Quotation' },
+  { key: 'delete', name: 'Delete Quotation' },
+  { key: 'master', name: 'Manage Clients/Vehicles' },
+  { key: 'company', name: 'Manage Company Profile' },
+  { key: 'users', name: 'Manage Users & Settings' },
+  { key: 'switch', name: 'Switch/Select Company' }
+];
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+function t(k){ return (translations[lang] && translations[lang][k]) || k; }
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function fmt(n){ return Number(n || 0).toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 }); }
+function toast(msg){ const el = $("toast"); el.textContent = msg; el.style.display = "block"; clearTimeout(el._tm); el._tm = setTimeout(() => el.style.display = "none", 2400); }
+
+/* ============================================================
+   FILTERING
+   ============================================================ */
+function toggleFilterMenu(e) {
+  e.stopPropagation();
+  $("filterMenu").classList.toggle("show");
+}
+
+function toggleFilterStatus(cb) {
+  if (cb.checked) filterStatuses.push(cb.value);
+  else filterStatuses = filterStatuses.filter(s => s !== cb.value);
+  renderAll();
+}
+
+function clearFilters() {
+  document.querySelectorAll("#filterMenu input[type='checkbox']").forEach(cb => cb.checked = false);
+  filterStatuses = [];
+  if ($("filterCompany")) $("filterCompany").value = "";
+  renderAll();
+  $("filterMenu").classList.remove("show");
+}
+
+/* ============================================================
+   PERSISTENCE
+   ============================================================ */
+function persist(){ localStorage.setItem(LS.quotes, JSON.stringify(quotes)); }
+function persistCompanies(){ localStorage.setItem(LS.companies, JSON.stringify(companies)); }
+function persistUsers(){ localStorage.setItem(LS.users, JSON.stringify(users)); }
+function persistRoles(){ localStorage.setItem(LS.roles, JSON.stringify(roles)); }
+function persistLoginSettings(){ localStorage.setItem(LS.loginSettings, JSON.stringify(loginSettings)); }
+
+/* ============================================================
+   DARK MODE
+   ============================================================ */
+function toggleDarkMode() {
+  const isDark = document.body.classList.toggle("dark-mode");
+  localStorage.setItem(LS.darkMode, isDark ? "true" : "false");
+
+  const btn = $("darkModeBtn"); if (btn) btn.textContent = isDark ? "☀️" : "🌙";
+  const loginBtn = $("loginDarkModeBtn"); if (loginBtn) loginBtn.textContent = isDark ? "☀️" : "🌙";
+
+  updateVisualEditorBackground();
+  renderCharts(activeQuotes());
+}
+
+function loadDarkMode() {
+  const isDark = localStorage.getItem(LS.darkMode) === "true";
+  if (isDark) {
+    document.body.classList.add("dark-mode");
+    const btn = $("darkModeBtn"); if (btn) btn.textContent = "☀️";
+    const loginBtn = $("loginDarkModeBtn"); if (loginBtn) loginBtn.textContent = "☀️";
+  }
+}
+
+/* ============================================================
+   PERMISSIONS & ROLES
+   ============================================================ */
+const PERM_DEFAULTS = { create:true, edit:true, delete:false, master:false, company:false, users:false, switch:true };
+
+function getPerms(){
+  const raw = localStorage.getItem(LS.perms);
+  if (!raw) return {};
+  let parsed = JSON.parse(raw);
+  if (parsed.create !== undefined) {
+    const migrated = { "User": parsed };
+    localStorage.setItem(LS.perms, JSON.stringify(migrated));
+    return migrated;
+  }
+  return parsed;
+}
+
+function can(perm){
+  if (!currentUser) return false;
+  if (currentUser.role === "Admin") return true;
+  if (!perm) return true;
+
+  const allPerms = getPerms();
+  const rolePerms = allPerms[currentUser.role] || {};
+  return rolePerms[perm] !== undefined ? !!rolePerms[perm] : PERM_DEFAULTS[perm] !== false;
+}
+
+function applyNavPermissions(){
+  document.querySelectorAll(".nav button[data-perm]").forEach(btn => {
+    const perm = btn.dataset.perm;
+    btn.style.display = (perm && !can(perm)) ? "none" : "";
+  });
+}
+
+function renderPermissionsTable() {
+  const thead = $("permissionsTableHead");
+  const tbody = $("permissionsTableBody");
+  if (!thead || !tbody) return;
+
+  const allPerms = getPerms();
+
+  thead.innerHTML = `<tr><th style="text-align:left;">${t('records')}</th>${roles.map(r => `
+    <th>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span>${esc(r)}</span>
+        ${r !== 'Admin' ? `
+          <div style="display:flex; gap:4px;">
+            <button class="btn-light btn-xs" style="padding:4px 8px; font-size:12px;" data-role="${esc(r)}" onclick="editRole(this.dataset.role)" title="Edit Role">✏️</button>
+            <button class="btn-danger btn-xs" style="padding:4px 8px; font-size:12px;" data-role="${esc(r)}" onclick="deleteRole(this.dataset.role)" title="Delete Role">🗑️</button>
+          </div>` : ''}
+      </div>
+    </th>`).join('')}</tr>`;
+
+  tbody.innerHTML = FEATURES.map(f => {
+    return `<tr><td>${esc(f.name)}</td>${roles.map((r, idx) => {
+      if (r === "Admin") return `<td><input type="checkbox" checked disabled></td>`;
+      const isChecked = (allPerms[r] && allPerms[r][f.key] !== undefined) ? allPerms[r][f.key] : (PERM_DEFAULTS[f.key] !== false);
+      return `<td><input type="checkbox" id="perm_${idx}_${f.key}" ${isChecked ? 'checked' : ''}></td>`;
+    }).join('')}</tr>`;
+  }).join('');
+}
+
+function addRole() {
+  const name = $("newRoleName").value.trim();
+  if (!name) return;
+  if (roles.includes(name)) return alert(t("noRoleExists"));
+  roles.push(name);
+  persistRoles();
+  $("newRoleName").value = "";
+  renderPermissionsTable();
+  populateRolesDropdown();
+  toast(t("roleAdded"));
+}
+
+function editRole(oldName) {
+  const newName = prompt("Enter new name for role:", oldName);
+  if (!newName || newName === oldName) return;
+  if (roles.includes(newName)) return alert(t("noRoleExists"));
+
+  const idx = roles.indexOf(oldName);
+  roles[idx] = newName;
+
+  users.forEach(u => { if (u.role === oldName) u.role = newName; });
+
+  const perms = getPerms();
+  if (perms[oldName]) {
+    perms[newName] = perms[oldName];
+    delete perms[oldName];
+    localStorage.setItem(LS.perms, JSON.stringify(perms));
+  }
+
+  persistRoles();
+  persistUsers();
+  renderPermissionsTable();
+  populateRolesDropdown();
+  renderUsers();
+  toast(t("roleUpdated"));
+}
+
+function deleteRole(roleName) {
+  if (roleName === "Admin") return alert(t("cannotDeleteAdmin"));
+  if (!confirm(t("deleteRoleConfirm").replace("{role}", roleName))) return;
+
+  roles = roles.filter(r => r !== roleName);
+  users.forEach(u => { if (u.role === roleName) u.role = "User"; });
+
+  const perms = getPerms();
+  delete perms[roleName];
+  localStorage.setItem(LS.perms, JSON.stringify(perms));
+
+  persistRoles();
+  persistUsers();
+  renderPermissionsTable();
+  populateRolesDropdown();
+  renderUsers();
+  toast(t("roleDeleted"));
+}
+
+function savePermissions(){
+  const allPerms = {};
+  roles.forEach((r, idx) => {
+    if (r === "Admin") return;
+    allPerms[r] = {};
+    FEATURES.forEach(f => {
+      const cb = $(`perm_${idx}_${f.key}`);
+      if (cb) allPerms[r][f.key] = cb.checked;
+    });
+  });
+  localStorage.setItem(LS.perms, JSON.stringify(allPerms));
+  applyNavPermissions();
+  populateCompanyDropdown();
+  toast(t("permissionsSaved"));
+}
+
+function populateRolesDropdown() {
+  const sel = $("newUserRole");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = roles.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("");
+  if (roles.includes(current)) sel.value = current;
+}
+
+/* ============================================================
+   AUTH & PROFILE
+   ============================================================ */
+function doLogin(){
+  const u = $("loginUser").value.trim();
+  const p = $("loginPass").value;
+  const user = users.find(x => String(x.username).toLowerCase() === u.toLowerCase() && x.password === p);
+  if (!user) { alert(t("invalidCredentials")); return; }
+  currentUser = user;
+  $("loginScreen").style.display = "none";
+  $("app").style.display = "flex";
+  loadData();
+  updateTopbarProfile();
+}
+
+function doLogout(){
+  currentUser = null;
+  $("app").style.display = "none";
+  $("loginScreen").style.display = "flex";
+  $("loginPass").value = "";
+  $("topUserAvatar").style.display = "none";
+  $("topUserFallback").style.display = "flex";
+  $("topUserName").textContent = "User";
+}
+
+function updateTopbarProfile(){
+  if(!currentUser) return;
+
+  const avatarImg = $("topUserAvatar");
+  const fallback = $("topUserFallback");
+  const nameSpan = $("topUserName");
+
+  nameSpan.textContent = currentUser.name;
+
+  if(currentUser.picture && currentUser.picture.startsWith("data:image")) {
+    avatarImg.src = currentUser.picture;
+    avatarImg.style.display = "block";
+    fallback.style.display = "none";
+  } else {
+    avatarImg.style.display = "none";
+    fallback.style.display = "flex";
+    fallback.textContent = currentUser.name.charAt(0).toUpperCase();
+  }
+}
+
+function loadProfileData() {
+  if (!currentUser) return;
+  $("profName").value = currentUser.name || "";
+  $("profEmail").value = currentUser.email || "";
+  $("profMobile").value = currentUser.mobile || "";
+  $("profNewPass").value = "";
+  
+  const preview = $("profPicPreview");
+  if (currentUser.picture && currentUser.picture.startsWith("data:image")) {
+    preview.src = currentUser.picture;
+    preview.style.display = "block";
+  } else {
+    preview.removeAttribute("src");
+    preview.style.display = "none";
+  }
+
+  // ADMIN CONTROLS
+  if (currentUser.role === "Admin") {
+    $("adminOnlyPanels").style.display = "block";
+    loadLoginSettingsUI();
+    loadDashboardSettingsUI();
+  } else {
+    $("adminOnlyPanels").style.display = "none";
+  }
+}
+
+function handleProfPicUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 500 * 1024) { alert(t("imageTooLarge").replace("{size}","500KB")); e.target.value = ""; return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    $("profPicPreview").src = ev.target.result;
+    $("profPicPreview").style.display = "block";
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveMyProfile() {
+  if (!currentUser) return;
+  const newPass = $("profNewPass").value;
+  let picture = $("profPicPreview").getAttribute("src") || "";
+  if (!picture.startsWith("data:image")) picture = currentUser.picture || "";
+
+  currentUser.picture = picture;
+  if (newPass) currentUser.password = newPass;
+
+  const idx = users.findIndex(u => u.id === currentUser.id);
+  if (idx >= 0) {
+    users[idx].picture = picture;
+    if (newPass) users[idx].password = newPass;
+  }
+
+  persistUsers();
+  toast(t("profileUpdated"));
+  $("profNewPass").value = "";
+  updateTopbarProfile();
+  renderUsers(); 
+}
+
+/* ============================================================
+   LOGIN & DASHBOARD SETTINGS
+   ============================================================ */
+function loadLoginSettingsUI() {
+  $("loginSetTitle").value = loginSettings.mainTitle || "";
+  $("loginSetDesc").value = loginSettings.descText || "";
+  $("loginSetBrand").value = loginSettings.brandName || "";
+  $("loginSetImg").value = loginSettings.bgImage || "";
+  $("loginSetLogo").value = loginSettings.logo || "";
+
+  if (loginSettings.bgImage) {
+    $("loginImgPreview").src = loginSettings.bgImage;
+    $("loginImgPreviewBox").style.display = "flex";
+  } else {
+    $("loginImgPreviewBox").style.display = "none";
+  }
+
+  if (loginSettings.logo) {
+    $("loginLogoPreview").src = loginSettings.logo;
+    $("loginLogoPreviewBox").style.display = "flex";
+  } else {
+    $("loginLogoPreviewBox").style.display = "none";
+  }
+}
+
+function handleLoginLogoUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 500 * 1024) { alert(t("imageTooLarge").replace("{size}","500KB")); e.target.value = ""; return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    $("loginSetLogo").value = ev.target.result;
+    $("loginLogoPreview").src = ev.target.result;
+    $("loginLogoPreviewBox").style.display = "flex";
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeLoginLogo() {
+  $("loginSetLogo").value = "";
+  $("loginLogoPreviewBox").style.display = "none";
+  $("loginSetLogoFile").value = "";
+}
+
+function handleLoginImgUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { alert(t("imageTooLarge").replace("{size}","3MB")); e.target.value = ""; return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    $("loginSetImg").value = ev.target.result;
+    $("loginImgPreview").src = ev.target.result;
+    $("loginImgPreviewBox").style.display = "flex";
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeLoginBg() {
+  $("loginSetImg").value = "";
+  $("loginImgPreviewBox").style.display = "none";
+  $("loginSetImgFile").value = "";
+}
+
+function saveLoginSettings() {
+  loginSettings.mainTitle = $("loginSetTitle").value.trim();
+  loginSettings.descText = $("loginSetDesc").value.trim();
+  loginSettings.brandName = $("loginSetBrand").value.trim();
+  loginSettings.bgImage = $("loginSetImg").value;
+  loginSettings.logo = $("loginSetLogo").value;
+
+  persistLoginSettings();
+  applyLoginSettings();
+  toast(t("loginSettingsSaved"));
+}
+
+function applyLoginSettings() {
+  $("loginBrandName").textContent = loginSettings.brandName || "MIGHTY HANDS";
+  $("loginMainTitle").textContent = loginSettings.mainTitle || "Quotation Management System";
+  $("loginDescText").textContent = loginSettings.descText || "";
+
+  const logoIcon = $("loginLogoIcon");
+  if (loginSettings.logo) {
+      logoIcon.innerHTML = `<img src="${loginSettings.logo}" alt="Logo">`;
+      logoIcon.style.background = "transparent";
+  } else {
+      logoIcon.innerHTML = "⚙️";
+      logoIcon.style.background = "var(--gold)";
+  }
+
+  const leftPanel = $("loginLeftPanel");
+  const bgImage = $("loginBgImage");
+  
+  if (loginSettings.bgImage) {
+    bgImage.style.backgroundImage = `url('${loginSettings.bgImage}')`;
+    bgImage.style.display = "block";
+    leftPanel.classList.add("has-bg");
+  } else {
+    bgImage.style.backgroundImage = "none";
+    bgImage.style.display = "none";
+    leftPanel.classList.remove("has-bg");
+  }
+}
+
+function handleDashImgUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 1 * 1024 * 1024) { alert(t("imageTooLarge").replace("{size}","1MB")); e.target.value = ""; return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    $("dashSetImg").value = ev.target.result;
+    $("dashImgPreview").src = ev.target.result;
+    $("dashImgPreview").style.display = "block";
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveDashboardSettings() {
+  const comp = getActiveCompany();
+  comp.dashboardSettings = {
+    prefix: $("dashSetPrefix").value.trim(),
+    subtitle: $("dashSetSubtitle").value.trim(),
+    image: $("dashSetImg").value
+  };
+  persistCompanies();
+  applyTheme();
+  toast(t("dashboardSettingsSaved"));
+}
+
+function loadDashboardSettingsUI() {
+  const comp = getActiveCompany();
+  const ds = comp.dashboardSettings || defaultDashboardSettings;
+  $("dashSetPrefix").value = ds.prefix;
+  $("dashSetSubtitle").value = ds.subtitle;
+  $("dashSetImg").value = ds.image || "";
+  if (ds.image) {
+    $("dashImgPreview").src = ds.image;
+    $("dashImgPreview").style.display = "block";
+  } else {
+    $("dashImgPreview").style.display = "none";
+  }
+}
+
+/* ============================================================
+   LOAD / THEME / COMPANY
+   ============================================================ */
+function loadData(){
+  quotes = JSON.parse(localStorage.getItem(LS.quotes) || "[]");
+
+  companies.forEach(c => {
+    if (!Array.isArray(c.customers))  c.customers  = [];
+    if (!Array.isArray(c.vehicles))   c.vehicles   = [];
+    if (!Array.isArray(c.payments))   c.payments   = [];
+    if (!Array.isArray(c.notesList))  c.notesList  = [];
+
+    if (!c.greetings) c.greetings = { intro: '', closing: '' };
+    if (c.greetings.greeting !== undefined) delete c.greetings.greeting;
+
+    if (!c.layout) c.layout = {};
+    Object.keys(defaultLayout).forEach(key => {
+      if (!c.layout[key]) {
+        c.layout[key] = JSON.parse(JSON.stringify(defaultLayout[key]));
+      } else if (c.layout[key].bold === undefined) {
+        c.layout[key].bold = true;
+      }
+    });
+
+    if (!c.dashboardSettings) {
+      c.dashboardSettings = JSON.parse(JSON.stringify(defaultDashboardSettings));
+    }
+  });
+
+  const stored = Number(localStorage.getItem(LS.activeCo));
+  activeCompanyId = companies.some(c => c.id === stored) ? stored : companies[0].id;
+
+  editingCompanyId = null;
+  draftLayout = null;
+  editingMaster = { type: null, index: null };
+
+  renderThemePresets();
+  renderUiThemePresets();
+  applyNavPermissions();
+  populateCompanyDropdown();
+  populateQuoteFilters();
+  applyTheme();
+  applyLoginSettings();
+  renderAll();
+  renderMasters();
+  renderCompanySettings();
+  renderUsers();
+  populateSelects();
+  renderPermissionsTable();
+  populateRolesDropdown();
+  populateUserCompanies([]);
+  loadGreetings();
+  loadProfileData();
+  
+  showPage("dashboard", document.querySelector('[data-page="dashboard"]'));
+
+  initDragEditor();
+  syncVisualEditorFromLayout();
+  updateVisualEditorBackground(getActiveCompany().a4Design || "");
+}
+
+function getActiveCompany(){
+  let allowed = companies;
+  if (currentUser && currentUser.role !== "Admin") {
+    const ids = Array.isArray(currentUser.allowedCompanies) ? currentUser.allowedCompanies : [];
+    if (ids.length) {
+      const filtered = companies.filter(c => ids.includes(c.id));
+      if (filtered.length) allowed = filtered;
+    }
+  }
+  let found = allowed.find(c => c.id === activeCompanyId);
+  if (!found) {
+    activeCompanyId = allowed[0].id;
+    localStorage.setItem(LS.activeCo, activeCompanyId);
+    found = allowed[0];
+  }
+  return found;
+}
+
+function layoutOfEditTarget(){
+  if (draftLayout) return draftLayout;
+  if (editingCompanyId) {
+    const c = companies.find(x => x.id == editingCompanyId);
+    if (c) {
+      draftLayout = JSON.parse(JSON.stringify(c.layout));
+      return draftLayout;
+    }
+  }
+  draftLayout = JSON.parse(JSON.stringify(getActiveCompany().layout));
+  return draftLayout;
+}
+
+function populateCompanyDropdown(){
+  const menu = $("companyDropdownMenu");
+  const label = $("companyDropdownLabel");
+  if(!menu || !label) return;
+
+  let allowed = companies;
+  if (currentUser && currentUser.role !== "Admin") {
+    const ids = Array.isArray(currentUser.allowedCompanies) ? currentUser.allowedCompanies : [];
+    if (ids.length) {
+      const filtered = companies.filter(c => ids.includes(c.id));
+      if (filtered.length) allowed = filtered;
+    }
+  }
+
+  if (!allowed.some(c => c.id === activeCompanyId) && allowed.length) {
+    activeCompanyId = allowed[0].id;
+    localStorage.setItem(LS.activeCo, activeCompanyId);
+  }
+
+  const activeComp = allowed.find(c => c.id === activeCompanyId);
+  label.textContent = activeComp ? activeComp.name : "-- Select --";
+
+  menu.innerHTML = allowed.map(c => `
+    <div class="custom-select-item" onclick="selectCompany(${c.id})">
+      ${c.logo ? `<img src="${esc(c.logo)}" style="width:20px; height:20px; object-fit:contain; background:#fff; border-radius:4px; padding:2px; border:1px solid var(--line);">` : ""}
+      ${esc(c.name)}
+    </div>
+  `).join("");
+}
+
+function populateQuoteFilters() {
+  const sel = $("filterCompany");
+  if (!sel) return;
+  const comp = getActiveCompany();
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All Companies</option>' + 
+    comp.customers.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join("");
+  if (Array.from(sel.options).some(o => o.value === current)) sel.value = current;
+  else sel.value = "";
+}
+
+function toggleCompanyDropdown(e) {
+  e.stopPropagation();
+  if (!can("switch")) return;
+  $("companyDropdownMenu").classList.toggle("show");
+}
+
+function selectCompany(id) {
+  activeCompanyId = id;
+  localStorage.setItem(LS.activeCo, activeCompanyId);
+  $("companyDropdownMenu").classList.remove("show");
+  switchCompany();
+}
+
+function switchCompany(){
+  cancelEditCompany();
+  applyTheme();
+  populateQuoteFilters();
+  renderAll(); renderMasters(); renderCompanySettings(); populateSelects(); loadGreetings();
+  loadDashboardSettingsUI();
+
+  syncVisualEditorFromLayout();
+  updateVisualEditorBackground(getActiveCompany().a4Design || "");
+  populateCompanyDropdown();
+}
+
+function applyTheme(){
+  const comp = getActiveCompany();
+  const sb = $("sidebarBrandName"); if (sb) sb.textContent = comp.name;
+  const dn = $("dashWelcomeName");  if (dn) dn.textContent = comp.name;
+
+  // Apply Company Logo on Sidebar
+  const scl = $("sidebarCompanyLogo");
+  if (scl) {
+    if (comp.logo) {
+      scl.src = comp.logo;
+      scl.style.display = "block";
+    } else {
+      scl.style.display = "none";
+    }
+  }
+
+  // Apply Company Logo on Dashboard
+  const dcl = $("dashCompanyLogo");
+  if (dcl) {
+    if (comp.logo) {
+      dcl.src = comp.logo;
+      dcl.style.display = "block";
+    } else {
+      dcl.style.display = "none";
+    }
+  }
+
+  // Apply Dashboard Custom Settings
+  const ds = comp.dashboardSettings || defaultDashboardSettings;
+  const wp = $("dashWelcomeTitlePrefix"); if (wp) wp.textContent = ds.prefix;
+  const ws = $("dashWelcomeSubtitle"); if (ws) ws.textContent = ds.subtitle;
+  const wi = $("dashWelcomeImage");
+  if (wi) {
+    if (ds.image) { wi.src = ds.image; wi.style.display = "block"; }
+    else { wi.style.display = "none"; }
+  }
+}
+
+function renderUiThemePresets() {
+  const container = $("uiThemePresets");
+  if (!container) return;
+  container.innerHTML = uiThemes.map((th, i) =>
+    `<div class="theme-card" onclick="setUiTheme(${i})" title="${esc(th.name)}">
+       <div style="background:${th.primary}"></div>
+       <div style="background:${th.secondary}"></div>
+       <div style="background:${th.accent}"></div>
+       <div style="background:${th.bg}"></div>
+     </div>`).join("");
+}
+
+function setUiTheme(index) {
+  const th = uiThemes[index];
+  if (!th) return;
+  document.documentElement.style.setProperty("--navy", th.primary);
+  document.documentElement.style.setProperty("--blue", th.secondary);
+  document.documentElement.style.setProperty("--gold", th.accent);
+  localStorage.setItem(LS.uiTheme, JSON.stringify(th));
+  toast(t("themeUpdated"));
+}
+
+function renderThemePresets(){
+  const html = pdfThemes.map((th, i) =>
+    `<div class="theme-card" onclick="applyPresetTheme(${i})" title="${esc(th.name)}">
+       <div style="background:${th.primary}"></div>
+       <div style="background:${th.secondary}"></div>
+       <div style="background:${th.accent}"></div>
+       <div style="background:${th.bg}"></div>
+     </div>`).join("");
+  $("themePresets").innerHTML = html;
+}
+
+function applyPresetTheme(index){
+  const th = pdfThemes[index];
+  if (!th) return;
+  $("compThemePrimary").value   = th.primary;
+  $("compThemeSecondary").value = th.secondary;
+  $("compThemeAccent").value    = th.accent;
+  $("compThemeBg").value        = th.bg;
+  $("selectedThemeName").textContent = th.name;
+  toast("PDF Theme selected! Click 'Save / Update' to apply.");
+}
+
+function rgbToHex(rgb) {
+  const parts = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+  if(!parts) return rgb;
+  return "#" + parts.slice(1).map(n => parseInt(n).toString(16).padStart(2, '0')).join('');
+}
+
+function extractColorsFromImage(base64) {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 50;
+    canvas.height = 50;
+    ctx.drawImage(img, 0, 0, 50, 50);
+    const data = ctx.getImageData(0, 0, 50, 50).data;
+    const colorCounts = {};
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+      if (a < 128) continue;
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      if (lum > 245 || lum < 15) continue;
+
+      const key = `${Math.floor(r/16)*16},${Math.floor(g/16)*16},${Math.floor(b/16)*16}`;
+      colorCounts[key] = (colorCounts[key] || 0) + 1;
+    }
+
+    const sorted = Object.entries(colorCounts).sort((a, b) => b[1] - a[1]);
+    if (sorted.length === 0) return;
+
+    const getRgbString = (str) => {
+      const [r, g, b] = str.split(',').map(Number);
+      return `rgb(${r}, ${g}, ${b})`;
+    };
+
+    const primary = getRgbString(sorted[0][0]);
+    const secondary = sorted[1] ? getRgbString(sorted[1][0]) : primary;
+    const accent = sorted[2] ? getRgbString(sorted[2][0]) : primary;
+
+    $("compThemePrimary").value = rgbToHex(primary);
+    $("compThemeSecondary").value = rgbToHex(secondary);
+    $("compThemeAccent").value = rgbToHex(accent);
+
+    $("selectedThemeName").textContent = "Extracted from A4";
+    toast("Palette extracted from A4 background!");
+  };
+  img.src = base64;
+}
+
+function generateCoolors(){
+  const a4Val = $("compA4").value;
+  if (a4Val) { extractColorsFromImage(a4Val); return; }
+
+  const h = Math.floor(Math.random() * 360);
+  const s = Math.floor(Math.random() * 30) + 50;
+  const l = Math.floor(Math.random() * 20) + 20;
+  $("compThemePrimary").value   = `hsl(${h}, ${s}%, ${l}%)`;
+  $("compThemeSecondary").value = `hsl(${(h + 30) % 360}, ${s}%, ${l + 15}%)`;
+  $("compThemeAccent").value    = `hsl(${(h + 180) % 360}, 80%, 60%)`;
+  $("compThemeBg").value        = `hsl(${h}, 40%, 96%)`;
+  $("selectedThemeName").textContent = "Custom Generated";
+}
+
+/* ============================================================
+   GREETING
+   ============================================================ */
+function loadGreetings() {
+  const comp = getActiveCompany();
+  $("introTextInput").value   = comp.greetings.intro    || '';
+  $("closingTextInput").value = comp.greetings.closing  || '';
+}
+
+function saveGreetings() {
+  const comp = getActiveCompany();
+  comp.greetings.intro    = $("introTextInput").value.trim();
+  comp.greetings.closing  = $("closingTextInput").value.trim();
+  persistCompanies();
+  toast(t("messageSaved"));
+}
+
+/* ============================================================
+   VISUAL LAYOUT EDITOR
+   ============================================================ */
+function initDragEditor() {
+  if (_dragReady) return;
+  _dragReady = true;
+
+  const container = $("pdfVisualEditor");
+  if(!container) return;
+
+  const dragItems = container.querySelectorAll(".drag-item");
+
+  dragItems.forEach(el => {
+    el.addEventListener("mousedown", (e) => {
+      document.querySelectorAll(".drag-item").forEach(d => d.classList.remove("selected"));
+      el.classList.add("selected");
+      selectedBlockKey = el.dataset.key;
+      showBlockProperties(selectedBlockKey);
+
+      const rect = el.getBoundingClientRect();
+      if (e.clientX > rect.right - 20 && e.clientY > rect.bottom - 20) return;
+
+      isDragging = true;
+      currentDrag = el;
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+      e.preventDefault();
+    });
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging || !currentDrag) return;
+    const containerRect = container.getBoundingClientRect();
+
+    let xPx = e.clientX - containerRect.left - offsetX;
+    let yPx = e.clientY - containerRect.top - offsetY;
+
+    let xPercent = (xPx / container.clientWidth) * 100;
+    let yPercent = (yPx / container.clientHeight) * 100;
+
+    xPercent = Math.max(0, Math.min(xPercent, 100 - (currentDrag.offsetWidth / container.clientWidth * 100)));
+    yPercent = Math.max(0, Math.min(yPercent, 100 - (currentDrag.offsetHeight / container.clientHeight * 100)));
+
+    currentDrag.style.left = xPercent + "%";
+    currentDrag.style.top = yPercent + "%";
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (isDragging && currentDrag) updateLayoutFromVisual();
+    isDragging = false;
+    currentDrag = null;
+  });
+
+  let resizeTimer;
+  container.addEventListener("mouseup", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(updateLayoutFromVisual, 100);
+  });
+
+  $("propFont").addEventListener("change", updateBlockStyle);
+  $("propSize").addEventListener("input", updateBlockStyle);
+  $("propHeight").addEventListener("input", updateBlockStyle);
+  $("propColor").addEventListener("input", updateBlockStyle);
+  $("propBold").addEventListener("change", updateBlockStyle);
+}
+
+function showBlockProperties(key) {
+  if (!key) {
+    $("noBlockSelected").style.display = "block";
+    $("propControls").style.display = "none";
+    return;
+  }
+  $("noBlockSelected").style.display = "none";
+  $("propControls").style.display = "block";
+
+  const layout = layoutOfEditTarget();
+  const block = layout[key] || defaultLayout[key];
+
+  $("propFont").value   = block.fontFamily || "Arial, sans-serif";
+  $("propSize").value   = block.fontSize || 14;
+  $("propHeight").value = block.h || 10;
+  $("propColor").value  = block.color || "#000000";
+  $("propBold").checked = block.bold !== false;
+}
+
+function updateBlockStyle() {
+  if (!selectedBlockKey) return;
+  const el = document.querySelector(`.drag-item[data-key="${selectedBlockKey}"]`);
+  if (!el) return;
+
+  el.style.fontFamily = $("propFont").value;
+  el.style.fontSize   = $("propSize").value + "px";
+  el.style.height     = $("propHeight").value + "%";
+  el.style.color      = $("propColor").value;
+  el.style.fontWeight = $("propBold").checked ? "800" : "400";
+
+  updateLayoutFromVisual();
+}
+
+function hideSelectedBlock() {
+  if (!selectedBlockKey) return;
+  const key = selectedBlockKey;
+  layoutOfEditTarget()[key].hidden = true;
+
+  const el = document.querySelector(`.drag-item[data-key="${key}"]`);
+  if (el) el.style.display = "none";
+
+  document.querySelectorAll(".drag-item").forEach(d => d.classList.remove("selected"));
+  selectedBlockKey = null;
+  showBlockProperties(null);
+  renderHiddenBlocksList();
+  updateLayoutFromVisual();
+}
+
+function showBlock(key) {
+  layoutOfEditTarget()[key].hidden = false;
+  const el = document.querySelector(`.drag-item[data-key="${key}"]`);
+  if (el) el.style.display = "block";
+  renderHiddenBlocksList();
+  updateLayoutFromVisual();
+}
+
+function renderHiddenBlocksList() {
+  const layout = layoutOfEditTarget();
+  const container = $("hiddenButtons");
+  if (!container) return;
+  container.innerHTML = "";
+
+  Object.keys(layout).forEach(key => {
+    if (layout[key].hidden) {
+      const btn = document.createElement("button");
+      btn.className = "hidden-block-btn";
+      btn.innerHTML = `↩ ${key.charAt(0).toUpperCase() + key.slice(1)}`;
+      btn.onclick = () => showBlock(key);
+      container.appendChild(btn);
+    }
+  });
+
+  if (container.innerHTML === "") {
+    container.innerHTML = '<div class="muted" style="font-size:11px; padding:5px;">No hidden blocks</div>';
+  }
+}
+
+function updateLayoutFromVisual() {
+  const container = $("pdfVisualEditor");
+  if(!container) return;
+
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  const layout = layoutOfEditTarget();
+
+  ["offer", "customer", "intro", "table", "notes", "closing"].forEach(key => {
+    const el = document.querySelector(`.drag-item[data-key="${key}"]`);
+    if (!el) return;
+
+    if (el.style.display !== "none") {
+      layout[key].x = Math.round((el.offsetLeft / cw) * 100);
+      layout[key].y = Math.round((el.offsetTop / ch) * 100);
+      layout[key].w = Math.round((el.offsetWidth / cw) * 100);
+      layout[key].h = Math.round((el.offsetHeight / ch) * 100);
+
+      $(`l_${key}X`).value = layout[key].x;
+      $(`l_${key}Y`).value = layout[key].y;
+      $(`l_${key}W`).value = layout[key].w;
+      $(`l_${key}H`).value = layout[key].h;
+    }
+
+    if (key === selectedBlockKey) {
+      layout[key].fontFamily = $("propFont").value;
+      layout[key].fontSize   = Number($("propSize").value);
+      layout[key].color      = $("propColor").value;
+      layout[key].bold       = $("propBold").checked;
+    }
+  });
+}
+
+function syncVisualEditorFromLayout(layout) {
+  const container = $("pdfVisualEditor");
+  if(!container) return;
+
+  layout = layout || layoutOfEditTarget();
+
+  ["offer", "customer", "intro", "table", "notes", "closing"].forEach(key => {
+    const el = document.querySelector(`.drag-item[data-key="${key}"]`);
+    if (!el) return;
+
+    const block = layout[key] || defaultLayout[key];
+
+    if (block.hidden) {
+      el.style.display = "none";
+    } else {
+      el.style.display = "block";
+      el.style.left = block.x + "%";
+      el.style.top = block.y + "%";
+      el.style.width = block.w + "%";
+      el.style.height = block.h + "%";
+      el.style.fontFamily = block.fontFamily || 'Arial, sans-serif';
+      el.style.fontSize = (block.fontSize || 14) + "px";
+      el.style.color = block.color || "#1e293b";
+      el.style.fontWeight = (block.bold !== false) ? "800" : "400";
+    }
+
+    $(`l_${key}X`).value = block.x;
+    $(`l_${key}Y`).value = block.y;
+    $(`l_${key}W`).value = block.w;
+    $(`l_${key}H`).value = block.h;
+  });
+
+  renderHiddenBlocksList();
+  showBlockProperties(null);
+}
+
+function updateVisualEditorBackground(b64) {
+  const val = b64 !== undefined ? b64 : $("compA4").value;
+  const editor = $("pdfVisualEditor");
+  if (!editor) return;
+  if (val) {
+    editor.style.backgroundImage = `url('${val}')`;
+    editor.style.backgroundSize = "100% 100%";
+    editor.style.backgroundPosition = "center";
+    editor.style.backgroundRepeat = "no-repeat";
+  } else {
+    const isDark = document.body.classList.contains("dark-mode");
+    const gridColor = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)";
+    editor.style.backgroundImage = `linear-gradient(to right, ${gridColor} 1px, transparent 1px), linear-gradient(to bottom, ${gridColor} 1px, transparent 1px)`;
+    editor.style.backgroundSize = "20px 20px";
+    editor.style.backgroundPosition = "top left";
+    editor.style.backgroundRepeat = "repeat";
+  }
+}
+
+function autoAdjustLayout() {
+  const container = $("pdfVisualEditor");
+  if (!container) return;
+  const layout = layoutOfEditTarget();
+  const ch = container.clientHeight;
+
+  const contentBlocks = ["customer", "intro", "table", "notes", "closing"];
+  const savedH = {};
+  contentBlocks.forEach(key => {
+    const el = document.querySelector(`.drag-item[data-key="${key}"]`);
+    if (el) { savedH[key] = el.style.height; el.style.height = "auto"; }
+  });
+
+  void container.offsetHeight;
+
+  layout.offer.x = 75;
+  layout.offer.y = 8;
+  layout.offer.w = 20;
+  const offerEl = document.querySelector('.drag-item[data-key="offer"]');
+  layout.offer.h = offerEl ? Math.max(10, (offerEl.scrollHeight / ch) * 100 + 1) : 12;
+
+  let currentY = Math.max(layout.offer.y + layout.offer.h + 2, 18);
+
+  const cfg = {
+    customer: { x: 10, w: 60 },
+    intro:    { x: 10, w: 85 },
+    table:    { x: 5,  w: 90 },
+    notes:    { x: 10, w: 85 },
+    closing:  { x: 10, w: 85 }
+  };
+
+  contentBlocks.forEach(key => {
+    if (layout[key].hidden) return;
+    const el = document.querySelector(`.drag-item[data-key="${key}"]`);
+    if (!el) return;
+    const h = (el.scrollHeight / ch) * 100 + 1.5;
+    layout[key].x = cfg[key].x;
+    layout[key].y = currentY;
+    layout[key].w = cfg[key].w;
+    layout[key].h = Math.round(h);
+    currentY += h + 2;
+  });
+
+  contentBlocks.forEach(key => {
+    const el = document.querySelector(`.drag-item[data-key="${key}"]`);
+    if (el && savedH[key] !== undefined) el.style.height = savedH[key];
+  });
+
+  syncVisualEditorFromLayout(layout);
+  updateLayoutFromVisual();
+  toast(t("blocksArranged"));
+}
+
+/* ============================================================
+   COMPANY PROFILE CRUD
+   ============================================================ */
+function handleLogoUpload(e){
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 1024 * 1024) { alert(t("imageTooLarge").replace("{size}","1MB")); e.target.value = ""; return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    $("compLogo").value = ev.target.result;
+    $("logoPreview").src = ev.target.result;
+    $("logoPreview").style.display = "block";
+    $("logoPlaceholder").style.display = "none";
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleA4Upload(e){
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { alert(t("imageTooLarge").replace("{size}","3MB")); e.target.value = ""; return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX_W = 1200;
+      const scale = Math.min(MAX_W / img.width, 1);
+      const canvas = document.createElement("canvas");
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      const base64 = canvas.toDataURL("image/jpeg", 0.8);
+      $("compA4").value = base64;
+      $("a4Preview").src = base64;
+      $("a4Preview").style.display = "block";
+      $("a4Placeholder").style.display = "none";
+      updateVisualEditorBackground(base64);
+      extractColorsFromImage(base64);
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveCompany(){
+  const name    = $("compName").value.trim();
+  const logo    = $("compLogo").value;
+  const a4Design= $("compA4").value;
+  const editId  = $("editCompanyId").value;
+  const theme   = {
+    name: $("selectedThemeName").textContent,
+    primary: $("compThemePrimary").value,
+    secondary: $("compThemeSecondary").value,
+    accent: $("compThemeAccent").value,
+    bg: $("compThemeBg").value
+  };
+
+  const layout = JSON.parse(JSON.stringify(layoutOfEditTarget()));
+
+  if (!name) return alert(t("enterCompanyName"));
+
+  if (editId) {
+    const idx = companies.findIndex(c => c.id == editId);
+    if (idx >= 0) {
+      const old = companies[idx];
+      companies[idx] = { ...old, id: Number(editId), name, logo, a4Design, theme, layout };
+    }
+  } else {
+    companies.push({
+      id: Date.now(), name, logo, a4Design, theme, layout,
+      dashboardSettings: JSON.parse(JSON.stringify(defaultDashboardSettings)),
+      customers: [], vehicles: [], payments: [], notesList: [],
+      greetings: { intro: '', closing: '' }
+    });
+  }
+
+  persistCompanies();
+  populateCompanyDropdown();
+  populateQuoteFilters();
+  renderCompanySettings();
+  renderMasters();
+  populateSelects();
+  populateUserCompanies();
+  cancelEditCompany();
+  applyTheme();
+  toast(t("companySaved"));
+}
+
+function editCompany(id){
+  const c = companies.find(x => x.id === id); if (!c) return;
+  editingCompanyId = id;
+  draftLayout = null;
+  $("editCompanyId").value = c.id;
+  $("compName").value      = c.name;
+
+  const theme = c.theme || pdfThemes[0];
+  $("compThemePrimary").value   = theme.primary;
+  $("compThemeSecondary").value = theme.secondary;
+  $("compThemeAccent").value    = theme.accent;
+  $("compThemeBg").value        = theme.bg;
+  $("selectedThemeName").textContent = theme.name || "Custom";
+
+  $("compLogo").value = c.logo || "";
+  if (c.logo) { $("logoPreview").src = c.logo; $("logoPreview").style.display = "block"; $("logoPlaceholder").style.display = "none"; }
+  else { $("logoPreview").style.display = "none"; $("logoPlaceholder").style.display = "flex"; }
+  $("compLogoFile").value = "";
+
+  $("compA4").value = c.a4Design || "";
+  if (c.a4Design) { $("a4Preview").src = c.a4Design; $("a4Preview").style.display = "block"; $("a4Placeholder").style.display = "none"; }
+  else { $("a4Preview").style.display = "none"; $("a4Placeholder").style.display = "block"; }
+  $("compA4File").value = "";
+
+  syncVisualEditorFromLayout(layoutOfEditTarget());
+  updateVisualEditorBackground(c.a4Design || "");
+
+  $("formTitle").textContent = "Edit Company: " + c.name;
+  $("btnSaveCompany").textContent = t("updateCompany");
+  $("btnSaveCompany").className = "btn-gold";
+  $("btnCancelCompany").style.display = "inline-block";
+  $("company-settings").scrollIntoView({ behavior:"smooth" });
+}
+
+function cancelEditCompany(){
+  editingCompanyId = null;
+  draftLayout = null;
+  $("editCompanyId").value = "";
+  $("compName").value = "";
+  $("compLogo").value = "";
+  $("compLogoFile").value = "";
+  $("logoPreview").style.display = "none";
+  $("logoPlaceholder").style.display = "flex";
+  $("compA4").value = "";
+  $("compA4File").value = "";
+  $("a4Preview").style.display = "none";
+  $("a4Placeholder").style.display = "block";
+
+  const theme = getActiveCompany().theme || pdfThemes[0];
+  $("compThemePrimary").value   = theme.primary;
+  $("compThemeSecondary").value = theme.secondary;
+  $("compThemeAccent").value    = theme.accent;
+  $("compThemeBg").value        = theme.bg;
+  $("selectedThemeName").textContent = theme.name || "Custom";
+
+  syncVisualEditorFromLayout(getActiveCompany().layout);
+  updateVisualEditorBackground(getActiveCompany().a4Design || "");
+
+  $("formTitle").textContent = t("addNewCompany");
+  $("btnSaveCompany").textContent = "＋ " + t("addCompany").replace("＋ ", "");
+  $("btnSaveCompany").className = "btn-primary";
+  $("btnCancelCompany").style.display = "none";
+}
+
+function deleteCompany(id){
+  if (companies.length <= 1) return alert(t("cannotDeleteOnlyCompany"));
+  if (!confirm(t("confirmDelete"))) return;
+  companies = companies.filter(c => c.id !== id);
+  persistCompanies();
+  if (activeCompanyId === id) {
+    activeCompanyId = companies[0].id;
+    localStorage.setItem(LS.activeCo, activeCompanyId);
+    applyTheme();
+  }
+  if ($("editCompanyId").value == id) cancelEditCompany();
+  populateCompanyDropdown();
+  populateQuoteFilters();
+  renderCompanySettings();
+  renderAll(); renderMasters(); populateSelects(); populateUserCompanies(); loadGreetings();
+}
+
+function renderCompanySettings(){
+  const rows = $("companyRows"); if (!rows) return;
+  rows.innerHTML = companies.map((c, i) => {
+    const th = c.theme || pdfThemes[0];
+    return `<tr>
+      <td>${i + 1}</td>
+      <td style="display:flex; align-items:center; gap:8px;">
+        ${c.logo ? `<img src="${esc(c.logo)}" style="height:24px; width:24px; object-fit:contain; border-radius:4px; background:#fff; padding:2px; border:1px solid var(--line);">` : ""}
+        ${esc(c.name)}
+      </td>
+      <td><div style="display:flex; gap:2px;">
+        <span style="display:inline-block;width:12px;height:12px;background:${esc(th.primary)};border-radius:50%;"></span>
+        <span style="display:inline-block;width:12px;height:12px;background:${esc(th.secondary)};border-radius:50%;"></span>
+        <span style="display:inline-block;width:12px;height:12px;background:${esc(th.accent)};border-radius:50%;"></span>
+      </div></td>
+      <td>${c.a4Design ? '<span style="color:green;">✔ Set</span>' : '<span style="color:gray;">Default</span>'}</td>
+      <td>
+        <button class="btn-light btn-xs" onclick="editCompany(${c.id})">${t("edit")}</button>
+        <button class="btn-danger btn-xs" onclick="deleteCompany(${c.id})">${t("delete")}</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+/* ============================================================
+   USERS
+   ============================================================ */
+function handleUserPicture(e){
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 500 * 1024) { alert(t("imageTooLarge").replace("{size}","500KB")); e.target.value = ""; return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    $("userPreview").src = ev.target.result;
+    $("userPicPreviewContainer").style.display = "block";
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderUsers(){
+  const rows = $("usersRows"); if (!rows) return;
+
+  rows.innerHTML = users.map((u, i) => {
+    const compNames = (Array.isArray(u.allowedCompanies) && u.allowedCompanies.length)
+      ? u.allowedCompanies.map(id => companies.find(c => c.id === id)?.name).filter(Boolean).join(", ")
+      : (lang === 'en' ? "All Companies" : "كل الشركات");
+
+    return `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${u.picture ? `<img src="${esc(u.picture)}" class="user-avatar">` : ""} ${esc(u.name)}</td>
+      <td>${esc(u.username)}</td>
+      <td>${esc(u.email || "")}</td>
+      <td>${esc(u.mobile || "")}</td>
+      <td><span class="tag">${esc(u.role)}</span></td>
+      <td style="white-space:normal; max-width:200px; font-size:12px;">${esc(compNames)}</td>
+      <td>
+        <button class="btn-light btn-xs" onclick="editUser(${u.id})">${t("edit")}</button>
+        ${u.id === 1 ? "" : `<button class="btn-danger btn-xs" onclick="deleteUser(${u.id})">${t("delete")}</button>`}
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function editUser(id){
+  const u = users.find(x => x.id === id); if (!u) return;
+  $("editUserId").value     = u.id;
+  $("newUserName").value    = u.name;
+  $("newUserUsername").value= u.username;
+  $("newUserPassword").value= u.password;
+  $("newUserEmail").value   = u.email || "";
+  
+  // Split Mobile code and number
+  let mobileStr = u.mobile || "";
+  let code = "+966"; // default
+  let number = mobileStr;
+  if (mobileStr.startsWith("+")) {
+      const parts = mobileStr.split(" ");
+      if (parts.length > 1) {
+          code = parts[0];
+          number = parts.slice(1).join(" ");
+      }
+  }
+  $("newUserCountryCode").value = code;
+  $("newUserMobile").value = number;
+
+  $("newUserRole").value    = u.role;
+
+  if (u.picture) {
+    $("userPreview").src = u.picture;
+    $("userPicPreviewContainer").style.display = "block";
+  } else {
+    $("userPreview").removeAttribute("src");
+    $("userPicPreviewContainer").style.display = "none";
+  }
+
+  const allowed = Array.isArray(u.allowedCompanies) ? u.allowedCompanies : [];
+  populateUserCompanies(allowed);
+
+  $("formTitleUser").textContent = "Edit User: " + u.name;
+  $("btnSaveUser").textContent = t("update");
+  $("btnSaveUser").className = "btn-gold";
+  $("btnCancelUser").style.display = "inline-block";
+  $("users-panel").scrollIntoView({ behavior:"smooth" });
+}
+
+function resetUserForm(){
+  $("editUserId").value      = "";
+  $("newUserName").value     = "";
+  $("newUserUsername").value = "";
+  $("newUserPassword").value = "";
+  $("newUserEmail").value    = "";
+  $("newUserCountryCode").value = "+966";
+  $("newUserMobile").value   = "";
+  $("newUserPicture").value  = "";
+  $("userPreview").removeAttribute("src");
+  $("userPicPreviewContainer").style.display = "none";
+
+  $("formTitleUser").textContent = t("addNewUser");
+  $("btnSaveUser").textContent = "＋ " + t("addUser").replace("＋ ", "");
+  $("btnSaveUser").className = "btn-primary";
+  $("btnCancelUser").style.display = "none";
+  populateUserCompanies([]);
+}
+
+function populateUserCompanies(selectedIds = []){
+  const container = $("userAllowedCompanies"); if (!container) return;
+  container.innerHTML = companies.map(c =>
+    `<label>
+      <input type="checkbox" value="${c.id}" ${selectedIds.includes(c.id) ? 'checked' : ''}>
+      ${c.logo ? `<img src="${esc(c.logo)}" style="height:18px; width:18px; object-fit:contain; border-radius:4px; background:#fff; padding:2px; border:1px solid var(--line);">` : ""}
+      ${esc(c.name)}
+    </label>`
+  ).join("");
+}
+
+function addUser(){
+  const editId  = $("editUserId").value;
+  const name    = $("newUserName").value.trim();
+  const username= $("newUserUsername").value.trim();
+  const password= $("newUserPassword").value;
+  const email   = $("newUserEmail").value.trim();
+  
+  const code    = $("newUserCountryCode").value;
+  const rawMobile = $("newUserMobile").value.trim();
+  const mobile  = rawMobile ? `${code} ${rawMobile}` : "";
+
+  const role    = $("newUserRole").value;
+
+  const allowedCompanies = Array.from(document.querySelectorAll("#userAllowedCompanies input[type='checkbox']:checked")).map(cb => Number(cb.value));
+
+  const preview = $("userPreview");
+  let picture = preview.getAttribute("src") || "";
+  if (!picture.startsWith("data:image")) picture = "";
+
+  if (!name || !username || !password) return alert(t("fillAllFields"));
+
+  if (editId) {
+    const idx = users.findIndex(u => u.id == editId);
+    if (idx >= 0) users[idx] = { id: Number(editId), name, username, password, email, mobile, role, picture, allowedCompanies };
+  } else {
+    if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) return alert(t("usernameExists"));
+    users.push({ id: Date.now(), name, username, password, email, mobile, role, picture, allowedCompanies });
+  }
+
+  persistUsers();
+
+  if (currentUser && currentUser.id == editId) {
+    currentUser = users.find(u => u.id == editId);
+    updateTopbarProfile();
+    loadProfileData();
+  }
+
+  renderUsers();
+  resetUserForm();
+  toast(t("userSaved"));
+}
+
+function deleteUser(id){
+  const u = users.find(x => x.id === id);
+  if (!u) return;
+  if (currentUser && currentUser.id === id) return alert(t("userCannotDeleteSelf"));
+  if (u.role === "Admin" && users.filter(x => x.role === "Admin").length === 1) return alert(t("cannotDeleteLastAdmin"));
+  if (!confirm(t("confirmDelete"))) return;
+  users = users.filter(x => x.id !== id);
+  persistUsers();
+  renderUsers();
+  toast(t("deleted"));
+}
+
+/* ============================================================
+   MASTER DATA
+   ============================================================ */
+function renderMasters(){
+  const comp = getActiveCompany();
+  if (!$("customerMasterRows")) return;
+
+  $("customerMasterRows").innerHTML = comp.customers.map((x, i) =>
+    `<tr><td>${i + 1}</td><td>${esc(x.name)}</td><td>${esc(x.address || "")}</td>
+     <td>
+       <button class="btn-light btn-xs" onclick="editMaster('customers',${i})">${t("edit")}</button>
+       <button class="btn-danger btn-xs" onclick="removeMaster('customers',${i})">${t("delete")}</button>
+     </td></tr>`
+  ).join("") || '<tr><td colspan="4" class="empty">—</td></tr>';
+
+  $("vehicleMasterRows").innerHTML = comp.vehicles.map((x, i) =>
+    `<tr><td>${i + 1}</td><td>${esc(x.name)}</td><td>${fmt(x.cost)}</td>
+     <td>
+       <button class="btn-light btn-xs" onclick="editMaster('vehicles',${i})">${t("edit")}</button>
+       <button class="btn-danger btn-xs" onclick="removeMaster('vehicles',${i})">${t("delete")}</button>
+     </td></tr>`
+  ).join("") || '<tr><td colspan="4" class="empty">—</td></tr>';
+
+  $("paymentMasterRows").innerHTML = comp.payments.map((x, i) =>
+    `<tr><td>${i + 1}</td><td>${esc(x)}</td>
+     <td>
+       <button class="btn-light btn-xs" onclick="editMaster('payments',${i})">${t("edit")}</button>
+       <button class="btn-danger btn-xs" onclick="removeMaster('payments',${i})">${t("delete")}</button>
+     </td></tr>`
+  ).join("") || '<tr><td colspan="3" class="empty">—</td></tr>';
+
+  const noteRows = $("noteMasterRows");
+  if (noteRows) {
+    noteRows.innerHTML = comp.notesList.map((x, i) =>
+      `<tr><td>${i + 1}</td><td style="white-space:normal; max-width:400px;">${esc(x)}</td>
+       <td>
+         <button class="btn-light btn-xs" onclick="editMaster('notes',${i})">${t("edit")}</button>
+         <button class="btn-danger btn-xs" onclick="removeMaster('notesList',${i})">${t("delete")}</button>
+       </td></tr>`
+    ).join("") || '<tr><td colspan="3" class="empty">—</td></tr>';
+  }
+}
+
+function editMaster(type, index) {
+  editingMaster = { type, index };
+  const comp = getActiveCompany();
+
+  if (type === 'customers') {
+    const item = comp.customers[index];
+    $("masterCustomerName").value = item.name;
+    $("masterCustomerAddress").value = item.address || "";
+    $("btnAddCustomer").innerHTML = t("updateCompany");
+    $("btnCancelCustomer").style.display = "inline-block";
+  } else if (type === 'vehicles') {
+    const item = comp.vehicles[index];
+    $("masterVehicleName").value = item.name;
+    $("masterVehicleCost").value = item.cost;
+    $("btnAddVehicle").innerHTML = t("updateVehicle");
+    $("btnCancelVehicle").style.display = "inline-block";
+  } else if (type === 'payments') {
+    $("masterPayment").value = comp.payments[index];
+    $("btnAddPayment").innerHTML = t("updateTerm");
+    $("btnCancelPayment").style.display = "inline-block";
+  } else if (type === 'notes' || type === 'notesList') {
+    $("masterNoteInput").value = comp.notesList[index];
+    $("btnAddNote").innerHTML = t("updateNote");
+    $("btnCancelNote").style.display = "inline-block";
+  }
+}
+
+function cancelEditMaster() {
+  editingMaster = { type: null, index: null };
+
+  $("masterCustomerName").value = ""; $("masterCustomerAddress").value = "";
+  $("btnAddCustomer").innerHTML = `＋ <span data-i="addCustomer">${t("addCustomer")}</span>`;
+  $("btnCancelCustomer").style.display = "none";
+
+  $("masterVehicleName").value = ""; $("masterVehicleCost").value = "";
+  $("btnAddVehicle").innerHTML = `＋ <span data-i="addVehicle">${t("addVehicle")}</span>`;
+  $("btnCancelVehicle").style.display = "none";
+
+  $("masterPayment").value = "";
+  $("btnAddPayment").innerHTML = `＋ <span data-i="addPayment">${t("addPayment")}</span>`;
+  $("btnCancelPayment").style.display = "none";
+
+  $("masterNoteInput").value = "";
+  $("btnAddNote").innerHTML = `＋ <span data-i="addNote">${t("addNote")}</span>`;
+  $("btnCancelNote").style.display = "none";
+}
+
+function addMaster(type){
+  const comp = getActiveCompany();
+
+  if (editingMaster.type === type || (type === 'notes' && editingMaster.type === 'notesList')) {
+    if (type === "customers") {
+      const name = $("masterCustomerName").value.trim();
+      if (!name) return alert(t("enterCompanyName"));
+      comp.customers[editingMaster.index] = { name, address: $("masterCustomerAddress").value.trim() };
+    } else if (type === "vehicles") {
+      const name = $("masterVehicleName").value.trim();
+      const cost = Number($("masterVehicleCost").value) || 0;
+      if (!name) return alert(t("enterVehicleType"));
+      comp.vehicles[editingMaster.index] = { name, cost };
+    } else if (type === "payments") {
+      const term = $("masterPayment").value.trim();
+      if (!term) return alert(t("enterPaymentTerm"));
+      comp.payments[editingMaster.index] = term;
+    } else if (type === "notes") {
+      const note = $("masterNoteInput").value.trim();
+      if (!note) return alert(t("enterNote"));
+      comp.notesList[editingMaster.index] = note;
+    }
+    cancelEditMaster();
+  } else {
+    if (type === "customers") {
+      const name = $("masterCustomerName").value.trim();
+      if (!name) return alert(t("enterCompanyName"));
+      comp.customers.push({ name, address: $("masterCustomerAddress").value.trim() });
+      $("masterCustomerName").value = ""; $("masterCustomerAddress").value = "";
+    } else if (type === "vehicles") {
+      const name = $("masterVehicleName").value.trim();
+      const cost = Number($("masterVehicleCost").value) || 0;
+      if (!name) return alert(t("enterVehicleType"));
+      comp.vehicles.push({ name, cost });
+      $("masterVehicleName").value = ""; $("masterVehicleCost").value = "";
+    } else if (type === "payments") {
+      let term = $("masterPayment").value.trim();
+      if (!term) return alert(t("enterPaymentTerm"));
+      if (!/^\d+\./.test(term)) term = `${comp.payments.length + 1}. ${term}`;
+      comp.payments.push(term); $("masterPayment").value = "";
+    } else if (type === "notes") {
+      let note = $("masterNoteInput").value.trim();
+      if (!note) return alert(t("enterNote"));
+      if (!/^\d+\./.test(note)) note = `${comp.notesList.length + 1}. ${note}`;
+      comp.notesList.push(note); $("masterNoteInput").value = "";
+    }
+  }
+
+  persistCompanies(); renderMasters(); populateSelects(); populateQuoteFilters();
+}
+
+function removeMaster(type, i){
+  if (!confirm(t("confirmDelete"))) return;
+  const comp = getActiveCompany();
+  comp[type].splice(i, 1);
+  persistCompanies(); renderMasters(); populateSelects(); populateQuoteFilters();
+}
+
+/* ============================================================
+   FORM - DYNAMIC VEHICLE ROWS
+   ============================================================ */
+function addVehicleRow(data = null) {
+  const container = $("vehicleItemsContainer");
+  const row = document.createElement("div");
+  row.className = "vehicle-row";
+
+  const comp = getActiveCompany();
+  let vOptions = '<option value="">-- Select --</option>';
+  vOptions += comp.vehicles.map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join("");
+  vOptions += '<option value="Other">-- Other --</option>';
+
+  row.innerHTML = `
+    <div class="field" style="flex: 1.2;">
+      <label data-i="vehicles">Vehicle</label>
+      <select class="v-type" onchange="toggleCustomVehicle(this)">${vOptions}</select>
+      <input class="v-custom" placeholder="Type manually..." style="display:none; margin-top:4px;">
+    </div>
+    <div class="field v-desc">
+      <label data-i="description">Description</label>
+      <input class="v-desc-input">
+    </div>
+    <div class="field">
+      <label data-i="starting">Start</label>
+      <input type="date" class="v-start" onchange="calcRow(this)">
+    </div>
+    <div class="field">
+      <label data-i="ending">End</label>
+      <input type="date" class="v-end" onchange="calcRow(this)">
+    </div>
+    <div class="field" style="flex: 0.6; min-width: 60px;">
+      <label data-i="days">Days</label>
+      <input type="number" class="v-days" value="1" min="1" oninput="calcRow(this)">
+    </div>
+    <div class="field" style="flex: 0.6; min-width: 60px;">
+      <label data-i="vehicles">Qty</label>
+      <input type="number" class="v-qty" value="1" min="1" oninput="calcRow(this)">
+    </div>
+    <div class="field">
+      <label data-i="cost">Cost</label>
+      <input type="number" class="v-cost" value="0" min="0" step=".01" oninput="calcRow(this)">
+    </div>
+    <div class="field v-sub">
+      <label data-i="subtotal">Subtotal</label>
+      <input class="v-subtotal" readonly value="0.00">
+    </div>
+    <button type="button" class="btn-remove" onclick="this.parentElement.remove(); calc();">✕</button>
+  `;
+
+  container.appendChild(row);
+
+  if (data) {
+    if (comp.vehicles.some(x => x.name === data.vehicle)) {
+      row.querySelector(".v-type").value = data.vehicle;
+    } else if (data.vehicle) {
+      row.querySelector(".v-type").value = "Other";
+      row.querySelector(".v-custom").value = data.vehicle;
+      row.querySelector(".v-custom").style.display = "block";
+    }
+    row.querySelector(".v-desc-input").value = data.transportDetails || "";
+    row.querySelector(".v-start").value = data.startDate || "";
+    row.querySelector(".v-end").value = data.endDate || "";
+    row.querySelector(".v-days").value = data.days || 1;
+    row.querySelector(".v-qty").value = data.vehicles || 1;
+    row.querySelector(".v-cost").value = data.costVehicle || 0;
+  }
+
+  calcRow(row);
+}
+
+function toggleCustomVehicle(select) {
+  const row = select.closest(".vehicle-row");
+  const customInput = row.querySelector(".v-custom");
+  if (select.value === "Other") {
+    customInput.style.display = "block";
+    customInput.focus();
+  } else {
+    customInput.style.display = "none";
+    customInput.value = "";
+  }
+  calcRow(select);
+}
+
+function calcRow(el) {
+  const row = el.closest(".vehicle-row");
+  if (!row) return;
+
+  const start = row.querySelector(".v-start").value;
+  const end = row.querySelector(".v-end").value;
+  const daysInput = row.querySelector(".v-days");
+
+  if (start && end && el !== daysInput) {
+    const s = new Date(start);
+    const e = new Date(end);
+    if (e >= s) daysInput.value = Math.round((e - s) / 86400000) + 1;
+  }
+
+  const days = Number(daysInput.value) || 0;
+  const qty = Number(row.querySelector(".v-qty").value) || 0;
+  const cost = Number(row.querySelector(".v-cost").value) || 0;
+
+  const sub = days * qty * cost;
+  row.querySelector(".v-subtotal").value = fmt(sub);
+
+  calc();
+}
+
+function getCompanyPrefix(compName) {
+  if (!compName) return "QT";
+  let cleanName = compName.toUpperCase().replace(/[^A-Z0-9\s]/g, '');
+  cleanName = cleanName.replace(/\b(CO|COMPANY|CORP|CORPORATION|LLC|LTD|LIMITED|INC|INCORPORATED)\b/g, '').trim();
+
+  const words = cleanName.split(/\s+/).filter(w => w.length > 0);
+  if (words.length === 0) return "QT";
+  if (words.length === 1) return words[0].substring(0, 2);
+  return words[0].charAt(0) + words[1].charAt(0);
+}
+
+function nextNumber(){
+  const comp = getActiveCompany();
+  if (!comp) return "QT-001";
+  const compId = comp.id;
+  const prefix = getCompanyPrefix(comp.name);
+
+  const max = quotes
+    .filter(q => (q.companyId ?? companies[0].id) === compId)
+    .reduce((m, q) => {
+      const match = String(q.number || "").match(/(\d+)\s*$/);
+      return Math.max(m, match ? Number(match[1]) : 0);
+    }, 0);
+    
+  return prefix + "-" + String(max + 1).padStart(3, "0");
+}
+
+function resetForm(){
+  $("quoteForm").reset();
+  $("editId").value = "";
+  populateSelects();
+  $("number").value = nextNumber();
+  $("date").value = new Date().toISOString().slice(0, 10);
+  $("vat").value = 15;
+  $("notes").value = "";
+  $("quickNoteInput").value = "";
+  $("payment").value = "";
+  $("quickPaymentInput").value = "";
+  $("companyAddress").value = "";
+
+  $("vehicleItemsContainer").innerHTML = "";
+  addVehicleRow();
+
+  document.querySelectorAll("#notesCheckboxes input, #paymentCheckboxes input").forEach(cb => cb.checked = false);
+  calc();
+}
+
+function newQuote(){
+  if (!can("create")) return alert(t("noPermission"));
+  resetForm();
+  showPage("new", document.querySelector('[data-page="quotes"]'));
+}
+
+function populateSelects(){
+  const comp = getActiveCompany();
+  const c = $("customer"), nc = $("notesCheckboxes"), pc = $("paymentCheckboxes");
+
+  if (c) {
+    const old = c.value;
+    c.innerHTML = '<option value="">-- Select company --</option>' +
+      comp.customers.map(x => `<option value="${esc(x.name)}">${esc(x.name)}</option>`).join("");
+    if (old) c.value = old;
+  }
+
+  document.querySelectorAll(".v-type").forEach(sel => {
+    const row = sel.closest(".vehicle-row");
+    const old = sel.value;
+    const custom = row.querySelector(".v-custom").value;
+    let opts = '<option value="">-- Select --</option>' +
+      comp.vehicles.map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join("") +
+      '<option value="Other">-- Other --</option>';
+    sel.innerHTML = opts;
+
+    if (old === "Other") {
+      sel.value = "Other";
+      row.querySelector(".v-custom").style.display = "block";
+      row.querySelector(".v-custom").value = custom;
+    } else if (old) {
+      sel.value = old;
+    }
+  });
+
+  if (nc) {
+    nc.innerHTML = comp.notesList.length
+      ? comp.notesList.map((x, i) => `<label><input type="checkbox" value="${i}" onchange="updateNotesText()"> ${esc(x)}</label>`).join("")
+      : '<div class="empty" style="padding:10px;">No notes available</div>';
+  }
+  if (pc) {
+    pc.innerHTML = comp.payments.length
+      ? comp.payments.map((x, i) => `<label><input type="checkbox" value="${i}" onchange="updatePaymentText()"> ${esc(x)}</label>`).join("")
+      : '<div class="empty" style="padding:10px;">No payment terms available</div>';
+  }
+}
+
+function updateNotesText(){
+  const comp = getActiveCompany();
+  const checked = Array.from(document.querySelectorAll("#notesCheckboxes input:checked")).map(cb => comp.notesList[cb.value]);
+  $("notes").value = checked.join("\n\n");
+}
+
+function updatePaymentText(){
+  const comp = getActiveCompany();
+  const checked = Array.from(document.querySelectorAll("#paymentCheckboxes input:checked")).map(cb => comp.payments[cb.value]);
+  $("payment").value = checked.join("\n\n");
+}
+
+function quickAddNote(){
+  const val = $("quickNoteInput").value.trim(); if (!val) return;
+  const comp = getActiveCompany();
+  let note = val;
+  if (!/^\d+\./.test(note)) note = `${comp.notesList.length + 1}. ${note}`;
+  comp.notesList.push(note);
+  persistCompanies(); renderMasters(); populateSelects();
+  $("quickNoteInput").value = "";
+  $("notes").value += ($("notes").value ? "\n\n" : "") + note;
+}
+
+function quickAddPayment(){
+  const val = $("quickPaymentInput").value.trim(); if (!val) return;
+  const comp = getActiveCompany();
+  let term = val;
+  if (!/^\d+\./.test(term)) term = `${comp.payments.length + 1}. ${term}`;
+  comp.payments.push(term);
+  persistCompanies(); renderMasters(); populateSelects();
+  $("quickPaymentInput").value = "";
+  $("payment").value += ($("payment").value ? "\n\n" : "") + term;
+}
+
+/* ============================================================
+   CALCULATIONS (GLOBAL)
+   ============================================================ */
+function amounts(q){
+  let sub = 0;
+  if (Array.isArray(q.items) && q.items.length) {
+    q.items.forEach(it => {
+      sub += (Number(it.vehicles)||0) * (Number(it.days)||0) * (Number(it.costVehicle)||0);
+    });
+  } else if (q.vehicle) {
+    sub = (Number(q.vehicles)||0) * (Number(q.days)||0) * (Number(q.costVehicle)||0);
+  }
+  const vat = sub * (Number(q.vat) || 0) / 100;
+  const total = sub + vat;
+  return {
+    sub, vat, total,
+    usdSub: sub / EXCHANGE_RATE,
+    usdVat: vat / EXCHANGE_RATE,
+    usdTotal: total / EXCHANGE_RATE
+  };
+}
+
+function calc(){
+  let sub = 0;
+  document.querySelectorAll(".vehicle-row").forEach(row => {
+    const days = Number(row.querySelector(".v-days").value) || 0;
+    const qty = Number(row.querySelector(".v-qty").value) || 0;
+    const cost = Number(row.querySelector(".v-cost").value) || 0;
+    sub += days * qty * cost;
+  });
+
+  const vatRate = Number($("vat").value) || 0;
+  const vat = sub * vatRate / 100;
+  const total = sub + vat;
+
+  $("vSubtotal").textContent = "SAR " + fmt(sub);
+  $("vUsdSub").textContent   = "$" + fmt(sub / EXCHANGE_RATE);
+
+  $("vVat").textContent      = "SAR " + fmt(vat);
+  $("vUsdVat").textContent   = "$" + fmt(vat / EXCHANGE_RATE);
+
+  $("vGrand").textContent    = "SAR " + fmt(total);
+  $("vGrandUsd").textContent = "$" + fmt(total / EXCHANGE_RATE) + " USD";
+
+  $("vUsdGrand").textContent = "$" + fmt(total / EXCHANGE_RATE);
+}
+
+$("vat").addEventListener("input", calc);
+
+/* ============================================================
+   QUOTE CRUD
+   ============================================================ */
+function values(){
+  const items = [];
+  document.querySelectorAll(".vehicle-row").forEach(row => {
+    let vType = row.querySelector(".v-type").value;
+    if (vType === "Other") vType = row.querySelector(".v-custom").value.trim();
+
+    const cost = Number(row.querySelector(".v-cost").value) || 0;
+    const qty = Number(row.querySelector(".v-qty").value) || 0;
+
+    if (vType || cost > 0 || qty > 0) {
+      items.push({
+        vehicle: vType || "Vehicle",
+        transportDetails: row.querySelector(".v-desc-input").value,
+        startDate: row.querySelector(".v-start").value,
+        endDate: row.querySelector(".v-end").value,
+        days: Number(row.querySelector(".v-days").value) || 0,
+        vehicles: qty,
+        costVehicle: cost
+      });
+    }
+  });
+
+  const existing = quotes.find(x => x.id == $("editId").value);
+
+  return {
+    id: $("editId").value ? Number($("editId").value) : Date.now(),
+    companyId: existing ? existing.companyId : activeCompanyId,
+    number: $("number").value.trim(),
+    date: $("date").value,
+    status: $("status").value,
+    customer: $("customer").value,
+    companyAddress: $("companyAddress").value,
+    items: items,
+    vat: Math.min(100, Math.max(0, Number($("vat").value) || 0)),
+    notes: $("notes").value,
+    payment: $("payment").value
+  };
+}
+
+function saveQuote(e){
+  e.preventDefault();
+  const q = values();
+  if (!q.number) return alert(t("quoteNumberRequired"));
+  if (!q.customer) return alert(t("selectCompanyFirst"));
+  if (!q.items.length) return alert(t("addAtLeastOneVehicle"));
+
+  const isEdit = !!$("editId").value;
+  if (!isEdit && !can("create")) return alert(t("noPermission"));
+  if (isEdit && !can("edit"))    return alert(t("noPermission"));
+
+  const idx = quotes.findIndex(x => x.id === q.id);
+  if (idx >= 0) quotes[idx] = q; else quotes.unshift(q);
+
+  persist();
+  renderAll();
+  toast(t("saved"));
+  showPage("quotes", document.querySelector('[data-page="quotes"]'));
+}
+
+function editQuote(id){
+  if (!can("edit")) return alert(t("noPermission"));
+  const q = quotes.find(x => x.id === id); if (!q) return;
+
+  if (q.companyId && q.companyId !== activeCompanyId) {
+    activeCompanyId = q.companyId;
+    localStorage.setItem(LS.activeCo, activeCompanyId);
+    populateCompanyDropdown();
+    populateQuoteFilters();
+    applyTheme();
+    renderAll();
+  }
+  populateSelects();
+
+  $("number").value = q.number;
+  $("date").value = q.date;
+  $("status").value = q.status;
+  $("customer").value = q.customer;
+  $("companyAddress").value = q.companyAddress || "";
+  $("vat").value = q.vat;
+  $("notes").value = q.notes || "";
+  $("payment").value = q.payment || "";
+  $("editId").value = q.id;
+
+  $("vehicleItemsContainer").innerHTML = "";
+  if (q.items && q.items.length) {
+    q.items.forEach(item => addVehicleRow(item));
+  } else if (q.vehicle) {
+    addVehicleRow({
+      vehicle: q.vehicle,
+      transportDetails: q.transportDetails,
+      startDate: q.startDate,
+      endDate: q.endDate,
+      days: q.days,
+      vehicles: q.vehicles,
+      costVehicle: q.costVehicle
+    });
+  } else {
+    addVehicleRow();
+  }
+
+  calc();
+  showPage("new", document.querySelector('[data-page="quotes"]'));
+}
+
+function deleteQuote(id){
+  if (!can("delete")) return alert(t("noPermission"));
+  if (!confirm(t("confirmDelete"))) return;
+  quotes = quotes.filter(q => q.id !== id);
+  persist();
+  renderAll();
+  toast(t("deleted"));
+}
+
+/* ============================================================
+   TABLES & CHARTS
+   ============================================================ */
+function statusLabel(s){
+  if (lang !== "ar") return s;
+  return ({ Draft:"مسودة", Sent:"مرسل", Approved:"معتمد", Rejected:"مرفوض" }[s] || s);
+}
+
+function activeQuotes(){
+  return quotes.filter(q =>
+    q.companyId === activeCompanyId ||
+    (!q.companyId && activeCompanyId === companies[0].id)
+  );
+}
+
+function row(q, idx, actions){
+  const a = amounts(q);
+  let actionCell = "";
+  if (actions) {
+    const previewBtn = `<button class="btn-light btn-xs" onclick="previewQuote(${q.id})">${t("preview")}</button>`;
+    const printBtn   = `<button class="btn-light btn-xs" onclick="printQuote(${q.id})">${t("print")}</button>`;
+    const pdfBtn     = `<button class="btn-light btn-xs" onclick="pdfQuote(${q.id})">PDF</button>`;
+    const excelBtn   = `<button class="btn-light btn-xs" onclick="excelQuote(${q.id})">Excel</button>`;
+    const editBtn    = can("edit")   ? `<button class="btn-light btn-xs" onclick="editQuote(${q.id})">${t("edit")}</button>` : "";
+    const delBtn     = can("delete") ? `<button class="btn-danger btn-xs" onclick="deleteQuote(${q.id})">${t("delete")}</button>` : "";
+    actionCell = `<td style="white-space:nowrap; text-align:center;">${previewBtn}${printBtn}${pdfBtn}${excelBtn}${editBtn}${delBtn}</td>`;
+  }
+  return `<tr>
+    <td>${idx + 1}</td>
+    <td><strong>${esc(q.number)}</strong></td>
+    <td>${esc(q.date)}</td>
+    <td>${esc(q.customer || "N/A")}</td>
+    <td>${fmt(a.total)}</td>
+    <td><span class="tag">${esc(statusLabel(q.status))}</span></td>
+    ${actionCell}
+  </tr>`;
+}
+
+function renderCharts(list) {
+  const isDark = document.body.classList.contains("dark-mode");
+  const textColor = isDark ? "#cbd5e1" : "#64748b";
+  const gridColor = isDark ? "#334155" : "#e2e8f0";
+
+  const statuses = ["Draft", "Sent", "Approved", "Rejected"];
+  const statusCounts = statuses.map(s => list.filter(q => q.status === s).length);
+  const statusColors = ["#94a3b8", "#3b82f6", "#10b981", "#ef4444"];
+
+  if (statusChartInstance) statusChartInstance.destroy();
+  const statusCtx = $("statusChart").getContext("2d");
+  statusChartInstance = new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+      labels: statuses.map(s => statusLabel(s)),
+      datasets: [{ data: statusCounts, backgroundColor: statusColors, borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: textColor, font: { family: 'Arial', weight: 'bold' } } } }
+    }
+  });
+
+  const monthData = {};
+  list.forEach(q => {
+    if (!q.date) return;
+    const m = q.date.substring(0, 7);
+    monthData[m] = (monthData[m] || 0) + amounts(q).total;
+  });
+  const sortedMonths = Object.keys(monthData).sort();
+  const monthLabels = sortedMonths.map(m => {
+    const d = new Date(m + "-01");
+    return d.toLocaleString('default', { month: 'short', year: 'numeric' });
+  });
+  const monthTotals = sortedMonths.map(m => monthData[m]);
+
+  if (revenueChartInstance) revenueChartInstance.destroy();
+  const revenueCtx = $("revenueChart").getContext("2d");
+  revenueChartInstance = new Chart(revenueCtx, {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [{ label: 'Revenue (SAR)', data: monthTotals, backgroundColor: '#c99b45', borderRadius: 6, barThickness: 30 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: textColor, font: { weight: 'bold' } }, grid: { display: false } },
+        y: { ticks: { color: textColor, font: { weight: 'bold' } }, grid: { color: gridColor } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function scheduleCharts(list){
+  clearTimeout(_chartTimer);
+  _chartTimer = setTimeout(() => renderCharts(list), 150);
+}
+
+function renderAll(){
+  const list = activeQuotes();
+
+  const recent = [...list].sort((a, b) => b.id - a.id).slice(0, 5);
+  $("recentRows").innerHTML = recent.length
+    ? recent.map((q, i) => row(q, i, false)).join("")
+    : `<tr><td colspan="6" class="empty">${t("noRecords")}</td></tr>`;
+
+  // APPLY FILTERS
+  const s = ($("search") && $("search").value || "").toLowerCase();
+  const cFilter = $("filterCompany") ? $("filterCompany").value : "";
+  
+  let filtered = list.filter(q => (String(q.number) + " " + String(q.customer)).toLowerCase().includes(s));
+  
+  if (cFilter) filtered = filtered.filter(q => q.customer === cFilter);
+  
+  if (filterStatuses.length > 0) {
+    filtered = filtered.filter(q => filterStatuses.includes(q.status));
+  }
+
+  $("allRows").innerHTML = filtered.length
+    ? filtered.map((q, i) => row(q, i, true)).join("")
+    : `<tr><td colspan="7" class="empty">${t("noRecords")}</td></tr>`;
+
+  // Stats now reflect the filtered list
+  const total = filtered.reduce((sum, q) => sum + amounts(q).total, 0);
+  $("statCount").textContent    = filtered.length;
+  $("statValue").textContent    = fmt(total);
+  $("statDraft").textContent    = filtered.filter(q => q.status === "Draft" || q.status === "Sent").length;
+  $("statApproved").textContent = filtered.filter(q => q.status === "Approved").length;
+
+  scheduleCharts(filtered);
+}
+
+/* ============================================================
+   QUOTE PAPER HTML (Strict Absolute Positioning to match designer)
+   ============================================================ */
+function quoteHTML(q){
+  const a = amounts(q);
+  const ar = lang === "ar";
+  const comp = companies.find(c => c.id === q.companyId) || getActiveCompany();
+  const l = comp.layout;
+  const themeColor = (comp.theme && comp.theme.primary) || "#142b49";
+
+  const pX = v => (v / 100) * 210;
+  const pY = v => (v / 100) * 297;
+  const pW = v => (v / 100) * 210;
+
+  const bgStyle = comp.a4Design
+    ? `background-image:url('${comp.a4Design}'); background-size:100% auto; background-repeat:repeat-y; background-position:top left; background-color: #ffffff;`
+    : 'background-color: #ffffff;';
+
+  let html = `<div class="quote-paper" style="${bgStyle}" ${ar ? 'dir="rtl"' : ""}>`;
+
+  if (!l.offer.hidden) {
+    html += `<div data-block="offer" style="position:absolute; top:${pY(l.offer.y)}mm; left:${pX(l.offer.x)}mm; width:${pW(l.offer.w)}mm; height:${pY(l.offer.h)}mm; overflow:hidden;
+      font-family:${l.offer.fontFamily}; font-size:${l.offer.fontSize}px; color:${l.offer.color};
+      font-weight:${l.offer.bold !== false ? 900 : 500}; text-align:center; line-height:1.4; z-index:2;
+      text-shadow:0 1px 2px rgba(0,0,0,0.5);">
+      OFFER<br>${esc(q.number)}<br>${esc(q.date)}
+    </div>`;
+  }
+
+  if (!l.customer.hidden) {
+    html += `<div data-block="customer" style="position:absolute; top:${pY(l.customer.y)}mm; left:${pX(l.customer.x)}mm; width:${pW(l.customer.w)}mm; height:${pY(l.customer.h)}mm; overflow:hidden;
+      font-family:${l.customer.fontFamily}; font-size:${l.customer.fontSize}px; color:${l.customer.color};
+      font-weight:${l.customer.bold !== false ? 800 : 400}; line-height:1.4; z-index:2;">
+      <p style="margin:0;">${t("to")}: ${esc(q.customer)}</p>
+      ${q.companyAddress ? `<p style="margin:2px 0 0; font-size:0.85em; opacity:0.85;">${esc(q.companyAddress)}</p>` : ""}
+    </div>`;
+  }
+
+  if (!l.intro.hidden) {
+    const introMsg = comp.greetings.intro || t("intro");
+    html += `<div data-block="intro" style="position:absolute; top:${pY(l.intro.y)}mm; left:${pX(l.intro.x)}mm; width:${pW(l.intro.w)}mm; height:${pY(l.intro.h)}mm; overflow:hidden;
+      font-family:${l.intro.fontFamily}; font-size:${l.intro.fontSize}px; color:${l.intro.color};
+      font-weight:${l.intro.bold !== false ? 700 : 400}; line-height:1.6; z-index:2;">
+      ${esc(introMsg).replace(/\n/g, "<br>")}
+    </div>`;
+  }
+
+  if (!l.table.hidden) {
+    let rowsHTML = "";
+    if (q.items && q.items.length) {
+      q.items.forEach(it => {
+        const sub = (it.days || 0) * (it.vehicles || 0) * (it.costVehicle || 0);
+        rowsHTML += `<tr>
+          <td>${esc(it.vehicle)}</td>
+          <td>${esc(it.transportDetails || "")}</td>
+          <td>${esc(it.startDate || "")}</td>
+          <td>${esc(it.endDate || "")}</td>
+          <td>${it.vehicles}</td>
+          <td>${it.days}</td>
+          <td>${fmt(it.costVehicle)}</td>
+          <td>${fmt(sub)}</td>
+          <td>$${fmt(sub / EXCHANGE_RATE)}</td>
+        </tr>`;
+      });
+    } else if (q.vehicle) {
+      rowsHTML = `<tr>
+        <td>${esc(q.vehicle)}</td>
+        <td>${esc(q.transportDetails || "")}</td>
+        <td>${esc(q.startDate || "")}</td>
+        <td>${esc(q.endDate || "")}</td>
+        <td>${q.vehicles}</td>
+        <td>${q.days}</td>
+        <td>${fmt(q.costVehicle)}</td>
+        <td>${fmt(a.sub)}</td>
+        <td>$${fmt(a.usdSub)}</td>
+      </tr>`;
+    }
+
+    const tableBody = `
+      <table style="margin:0;">
+        <colgroup>
+          <col style="width:15%"><col style="width:25%"><col style="width:10%"><col style="width:10%">
+          <col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:8%">
+        </colgroup>
+        <thead><tr>
+          ${[t("vehicleType"), t("description"), t("starting"), t("ending"), t("vehicles"),
+             t("daysLabel"), t("costVehicle"), t("totalCost") + " (SAR)", t("totalCostS") + " (USD)"]
+            .map(h => `<th style="background:${themeColor} !important; border-color:${themeColor} !important; color:#fff !important;">${esc(h)}</th>`).join("")}
+        </tr></thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+      <div class="qtotal" style="border-color:${themeColor}; margin-top:3px;">
+        <div style="background:${themeColor} !important; border-color:${themeColor} !important; color:#fff !important;"><span>${t("subTotal")}</span><b>${fmt(a.sub)} SAR</b></div>
+        <div style="background:${themeColor} !important; border-color:${themeColor} !important; color:#fff !important;"><span>VAT (${q.vat}%)</span><b>${fmt(a.vat)} SAR</b></div>
+        <div class="grand" style="background:${themeColor} !important; border-color:${themeColor} !important; color:#fff !important;"><span>${t("grandTotal")}</span><b>${fmt(a.total)} SAR</b></div>
+      </div>`;
+
+    html += `<div data-block="table" style="position:absolute; top:${pY(l.table.y)}mm; left:${pX(l.table.x)}mm; width:${pW(l.table.w)}mm; height:${pY(l.table.h)}mm; overflow:hidden; z-index:2;">
+      ${tableBody}
+    </div>`;
+  }
+
+  if (!l.notes.hidden) {
+    html += `<div data-block="notes" style="position:absolute; top:${pY(l.notes.y)}mm; left:${pX(l.notes.x)}mm; width:${pW(l.notes.w)}mm; height:${pY(l.notes.h)}mm; overflow:hidden;
+      font-family:${l.notes.fontFamily}; font-size:${l.notes.fontSize}px; color:${l.notes.color};
+      font-weight:${l.notes.bold !== false ? 700 : 400}; line-height:1.6; z-index:2;">
+      <div class="qnotes" style="margin:0;">
+        <b>${t("notes")}:</b><br>${esc(q.notes || "").replace(/\n/g, "<br>")}
+        <p style="margin:6px 0;"><b>${t("paymentTerms")}:</b><br>${esc(q.payment || "").replace(/\n/g, "<br>")}</p>
+      </div>
+    </div>`;
+  }
+
+  if (!l.closing.hidden) {
+    const closingMsg = comp.greetings.closing || t("closing");
+    html += `<div data-block="closing" style="position:absolute; top:${pY(l.closing.y)}mm; left:${pX(l.closing.x)}mm; width:${pW(l.closing.w)}mm; height:${pY(l.closing.h)}mm; overflow:hidden;
+      font-family:${l.closing.fontFamily}; font-size:${l.closing.fontSize}px; color:${l.closing.color};
+      font-weight:${l.closing.bold !== false ? 700 : 400}; line-height:1.6; z-index:2;">
+      ${esc(closingMsg)}
+    </div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function backButton(targetPage){
+  return `<div class="no-print" style="padding:15px; text-align:right; background:var(--panel-bg); margin-bottom:10px; border-radius:10px;">
+    <button class="btn-primary" onclick="showPage('${targetPage}',document.querySelector('[data-page=${targetPage}]'))">← ${t("backToList")}</button>
+  </div>`;
+}
+
+function adjustPaperHeight(){
+  const MM_TO_PX = 794 / 210;
+  document.querySelectorAll('.quote-paper').forEach(paper => {
+    const paperRect = paper.getBoundingClientRect();
+    let maxBottomPx = 0;
+    paper.querySelectorAll('[data-block]').forEach(block => {
+      const rect = block.getBoundingClientRect();
+      const bottomPx = rect.bottom - paperRect.top;
+      if (bottomPx > maxBottomPx) maxBottomPx = bottomPx;
+    });
+    const neededMm = maxBottomPx / MM_TO_PX + 5;
+    if (neededMm > 297) {
+      paper.style.minHeight = neededMm + 'mm';
+    }
+  });
+}
+
+/* ============================================================
+   EXPORT (Uses direct html2canvas + jsPDF for perfect A4 snapshot)
+   ============================================================ */
+function toggleExportMenu(e){
+  e.stopPropagation();
+  $("exportMenu").classList.toggle("show");
+}
+window.addEventListener("click", () => {
+  document.querySelectorAll(".dropdown-content.show").forEach(d => d.classList.remove("show"));
+  if($("companyDropdownMenu")) $("companyDropdownMenu").classList.remove("show");
+  if($("filterMenu")) $("filterMenu").classList.remove("show");
+});
+
+function waitForImages(container, callback){
+  const imgs = Array.from(container.querySelectorAll("img"));
+  if (!imgs.length) return callback();
+  let remaining = imgs.length, called = false;
+  const done = () => {
+    if (called) return;
+    if (--remaining <= 0) { called = true; callback(); }
+  };
+  imgs.forEach(img => {
+    if (img.complete && img.naturalWidth !== 0) done();
+    else { img.addEventListener("load", done, { once:true }); img.addEventListener("error", done, { once:true }); }
+  });
+  setTimeout(() => { if (!called) { called = true; callback(); } }, 3000);
+}
+
+function generateExcelHTML(q){
+  const comp = companies.find(c => c.id === q.companyId) || getActiveCompany();
+  const themeColor = (comp.theme && comp.theme.primary) || "#142b49";
+  const a = amounts(q);
+  const r = v => String(v ?? "");
+
+  let itemsRows = "";
+  if (q.items && q.items.length) {
+    q.items.forEach(it => {
+      const sub = (it.days||0) * (it.vehicles||0) * (it.costVehicle||0);
+      itemsRows += `<tr>
+        <td>${r(it.vehicle)}</td>
+        <td>${r(it.transportDetails)}</td>
+        <td>${r(it.startDate)}</td>
+        <td>${r(it.endDate)}</td>
+        <td>${it.days}</td>
+        <td>${it.vehicles}</td>
+        <td>${fmt(it.costVehicle)}</td>
+        <td>${fmt(sub)}</td>
+      </tr>`;
+    });
+  } else if (q.vehicle) {
+    itemsRows = `<tr>
+        <td>${r(q.vehicle)}</td>
+        <td>${r(q.transportDetails)}</td>
+        <td>${r(q.startDate)}</td>
+        <td>${r(q.endDate)}</td>
+        <td>${q.days}</td>
+        <td>${q.vehicles}</td>
+        <td>${fmt(q.costVehicle)}</td>
+        <td>${fmt(a.sub)}</td>
+    </tr>`;
+  }
+
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+  <head><meta charset="UTF-8"></head><body>
+  <table border="1">
+    <tr><th colspan="8" style="background:${themeColor};color:#fff;">${r(comp.name)} — QUOTATION (${r(q.number)})</th></tr>
+    <tr><td>Date</td><td>${r(q.date)}</td><td>Customer</td><td colspan="5">${r(q.customer)}</td></tr>
+    <tr style="font-weight:bold; background:#f0f0f0;">
+      <th>Vehicle</th><th>Description</th><th>Start</th><th>End</th><th>Days</th><th>Qty</th><th>Cost/Vehicle</th><th>Subtotal (SAR)</th>
+    </tr>
+    ${itemsRows}
+    <tr><td colspan="7" align="right">SUB TOTAL (SAR)</td><td>${fmt(a.sub)}</td></tr>
+    <tr><td colspan="7" align="right">VAT (${r(q.vat)}%) (SAR)</td><td>${fmt(a.vat)}</td></tr>
+    <tr style="font-weight:bold;background:#f4b900;"><td colspan="7" align="right">GRAND TOTAL (SAR)</td><td>${fmt(a.total)}</td></tr>
+    <tr><td colspan="7" align="right">GRAND TOTAL (USD)</td><td>$${fmt(a.usdTotal)}</td></tr>
+    <tr><td colspan="2">Notes</td><td colspan="6">${r(q.notes)}</td></tr>
+    <tr><td colspan="2">Payment</td><td colspan="6">${r(q.payment)}</td></tr>
+  </table></body></html>`;
+}
+
+function downloadExcelHTML(html, filename){
+  const blob = new Blob([html], { type:"application/vnd.ms-excel" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportPDF(q, after){
+  $("printArea").innerHTML = quoteHTML(q);
+  showPage("printArea", null);
+  document.body.classList.add("exporting");
+
+  waitForImages($("printArea"), () => {
+    const element = $("printArea").querySelector('.quote-paper');
+    
+    // Force strict A4 dimensions and overflow hidden
+    element.style.width = '210mm';
+    element.style.height = '297mm';
+    element.style.minHeight = '297mm';
+    element.style.overflow = 'hidden';
+    element.style.position = 'relative';
+
+    html2canvas(element, {
+      scale: 2, // High resolution
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      windowWidth: 794, // 210mm at 96 DPI
+      scrollX: 0,
+      scrollY: 0
+    }).then(canvas => {
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Quotation_${q.number || "New"}.pdf`);
+      
+      document.body.classList.remove("exporting");
+      if (after) after();
+    }).catch(err => {
+      console.error(err);
+      document.body.classList.remove("exporting");
+      if (after) after();
+    });
+  });
+}
+
+function exportPrint(q, backTo){
+  $("printArea").innerHTML = quoteHTML(q);
+  showPage("printArea", null);
+  waitForImages($("printArea"), () => {
+    adjustPaperHeight();
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => showPage(backTo, document.querySelector(`[data-page="${backTo}"]`)), 400);
+    }, 250);
+  });
+}
+
+function doExport(type){
+  const q = values();
+  if (type === "print") exportPrint(q, "quotes");
+  else if (type === "pdf") exportPDF(q, () => showPage("new", document.querySelector('[data-page="quotes"]')));
+  else if (type === "excel") downloadExcelHTML(generateExcelHTML(q), `Quotation_${q.number || "New"}.xls`);
+}
+
+/* ============================================================
+   PREVIEW / PRINT / PDF / EXCEL FROM THE LIST
+   ============================================================ */
+function previewQuote(id){
+  const q = quotes.find(x => x.id === id); if (!q) return;
+  $("printArea").innerHTML = backButton("quotes") + quoteHTML(q);
+  showPage("printArea", null);
+  adjustPaperHeight();
+}
+
+function printQuote(id){
+  const q = quotes.find(x => x.id === id); if (!q) return;
+  exportPrint(q, "quotes");
+}
+
+function pdfQuote(id){
+  const q = quotes.find(x => x.id === id); if (!q) return;
+  exportPDF(q, () => showPage("quotes", document.querySelector('[data-page="quotes"]')));
+}
+
+function excelQuote(id){
+  const q = quotes.find(x => x.id === id); if (!q) return;
+  downloadExcelHTML(generateExcelHTML(q), `Quotation_${q.number || "New"}.xls`);
+}
+
+function previewCurrent(){
+  const q = values();
+  $("printArea").innerHTML = backButton("new") + quoteHTML(q);
+  showPage("printArea", null);
+  adjustPaperHeight();
+}
+
+/* ============================================================
+   LANGUAGE & NAVIGATION
+   ============================================================ */
+function toggleLang(){
+  lang = lang === "en" ? "ar" : "en";
+  document.documentElement.lang = lang;
+  document.body.classList.toggle("rtl", lang === "ar");
+  $("langBtn").textContent = lang === "en" ? "العربية" : "English";
+
+  document.querySelectorAll("[data-i]").forEach(el => {
+    el.textContent = t(el.dataset.i);
+  });
+
+  const placeholders = {
+    loginUser: lang === "en" ? "Enter username" : "أدخل اسم المستخدم",
+    loginPass: lang === "en" ? "Enter password" : "أدخل كلمة المرور"
+  };
+  Object.keys(placeholders).forEach(id => {
+    if ($(id)) $(id).placeholder = placeholders[id];
+  });
+
+  renderAll();
+  renderMasters();
+  renderUsers();
+  renderPermissionsTable();
+  populateRolesDropdown();
+  renderCompanySettings();
+  renderHiddenBlocksList();
+  populateSelects();
+  calc();
+  populateCompanyDropdown();
+  populateQuoteFilters();
+  updateVisualEditorBackground();
+}
+
+const PAGE_PERM = {
+  "quotes": "edit",
+  "masters-customers": "master",
+  "masters-vehicles":  "master",
+  "masters-payments":  "master",
+  "greeting-settings": "company",
+  "company-settings":  "company",
+  "users-panel":       "users",
+  "permissions-panel": "users"
+};
+
+function showPage(id, btn){
+  const perm = PAGE_PERM[id];
+  if (perm && !can(perm)) { alert(t("noPermission")); return; }
+
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  const page = $(id);
+  if (!page) return;
+  page.classList.add("active");
+
+  document.querySelectorAll(".nav button").forEach(b => b.classList.remove("active"));
+  if (btn && btn.classList) btn.classList.add("active");
+
+  const content = document.querySelector(".content");
+  if (content) content.scrollTop = 0;
+  
+  if (id === "user-profile") {
+    loadProfileData();
+  }
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+document.addEventListener("DOMContentLoaded", () => {
+  $("customer").addEventListener("change", () => {
+    const comp = getActiveCompany();
+    const c = comp.customers.find(x => x.name === $("customer").value);
+    if (c && c.address) $("companyAddress").value = c.address;
+  });
+
+  addVehicleRow();
+  loadDarkMode();
+  applyLoginSettings();
+});
+</script>
+</body>
+</html>
